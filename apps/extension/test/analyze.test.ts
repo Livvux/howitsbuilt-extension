@@ -1,0 +1,44 @@
+import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { analyzeTab, headersKey } from '../lib/analyze';
+
+const injected = (result: unknown) => [{ frameId: 0, documentId: 'd', result }] as any;
+
+beforeEach(() => {
+  fakeBrowser.reset();
+  vi.restoreAllMocks();
+});
+
+test('non-http(s) url → unsupported without calling executeScript', async () => {
+  const spy = vi.spyOn(browser.scripting, 'executeScript');
+  expect(await analyzeTab(1, 'chrome://extensions')).toEqual({ status: 'unsupported', url: 'chrome://extensions' });
+  expect(spy).not.toHaveBeenCalled();
+});
+
+test('executeScript rejection → unsupported (web store, pdf)', async () => {
+  vi.spyOn(browser.scripting, 'executeScript').mockRejectedValue(new Error('Cannot access contents of the page'));
+  expect(await analyzeTab(1, 'https://chromewebstore.google.com/x')).toEqual({
+    status: 'unsupported',
+    url: 'https://chromewebstore.google.com/x',
+  });
+});
+
+test('merges stored headers with collected signals', async () => {
+  await browser.storage.session.set({ [headersKey(1)]: { 'x-powered-by': 'Next.js 15' } });
+  const spy = vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue(injected({}));
+  const r = await analyzeTab(1, 'https://x.test/');
+  expect(r.status).toBe('ok');
+  expect(r.status === 'ok' && r.detections.map((d) => d.tech)).toContain('Next.js');
+  expect(spy.mock.calls[0]![0]).toMatchObject({ target: { tabId: 1 }, world: 'MAIN' });
+});
+
+test('missing headers (SW restart) still analyzes', async () => {
+  vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue(injected({ meta: { generator: ['WordPress 6.4'] } }));
+  const r = await analyzeTab(2, 'https://x.test/');
+  expect(r.status === 'ok' && r.detections.map((d) => d.tech)).toContain('WordPress');
+});
+
+test('empty injection result (page navigated away) → ok with no detections', async () => {
+  vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue([] as any);
+  const r = await analyzeTab(3, 'https://x.test/');
+  expect(r).toMatchObject({ status: 'ok', detections: [] });
+});
