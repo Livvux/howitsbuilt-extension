@@ -1,6 +1,5 @@
 import { chromium, expect, test, type BrowserContext, type Worker } from '@playwright/test';
 import { join } from 'node:path';
-import type { TabResult } from '../lib/analyze';
 import { startFixtureServer } from './fixture-server';
 
 const EXTENSION = join(import.meta.dirname, '..', '.output', 'chrome-mv3');
@@ -16,8 +15,6 @@ test.beforeAll(async () => {
     args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`],
   });
   sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker'));
-  // The worker is reported before its (large) script finished evaluating; navigating
-  // earlier would fire webRequest/tabs events before the listeners exist.
   await expect.poll(() => sw.evaluate(() => chrome.tabs.onUpdated.hasListeners())).toBe(true);
 });
 
@@ -26,37 +23,39 @@ test.afterAll(async () => {
   await fixture?.close();
 });
 
-test('detects stack and sets badge', async () => {
+async function activeTabId(): Promise<number> {
+  return sw.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab!.id!;
+  });
+}
+
+test('opening a website no longer performs automatic scans or populates a badge', async () => {
   const page = await ctx.newPage();
   await page.goto(fixture.url);
-
-  const badge = () =>
-    sw.evaluate(async () => {
-      const [tab] = await chrome.tabs.query({ url: 'http://127.0.0.1/*' });
-      return chrome.action.getBadgeText({ tabId: tab!.id! });
-    });
-  await expect.poll(badge, { timeout: 10_000 }).not.toBe('');
-
-  const result = await sw.evaluate(async () => {
-    const [tab] = await chrome.tabs.query({ url: 'http://127.0.0.1/*' });
-    const key = `result:${tab!.id}`;
-    return (await chrome.storage.session.get(key))[key] as TabResult;
-  });
-  if (result.status !== 'ok') throw new Error(`expected ok, got ${result.status}`);
-  expect(result.detections.map((d) => d.tech)).toEqual(expect.arrayContaining(['Next.js', 'WordPress', 'React', 'PHP']));
-  expect(await badge()).toBe(String(result.detections.length));
-});
-
-test('internal pages are reported as unsupported', async () => {
-  const page = await ctx.newPage();
-  await page.goto('chrome://version');
-  // Without the "tabs" permission Chrome hides chrome:// URLs, so look the tab up by its id.
-  const statusOfActiveTab = () =>
-    sw.evaluate(async () => {
-      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      const key = `result:${tab!.id}`;
-      return ((await chrome.storage.session.get(key))[key] as TabResult | undefined)?.status;
-    });
   await page.bringToFront();
-  await expect.poll(statusOfActiveTab, { timeout: 10_000 }).toBe('unsupported');
+  const tabId = await activeTabId();
+
+  // The service worker observes navigation only to clear stale badges.
+  // It must not silently extract content or store browsing history.
+  expect(await sw.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe('');
+  expect(await sw.evaluate(() => chrome.storage.session.get(null))).toEqual({});
+  await page.close();
 });
+
+test('a badge from an on-demand scan is cleared on navigation', async () => {
+  const page = await ctx.newPage();
+  await page.goto(fixture.url);
+  await page.bringToFront();
+  const tabId = await activeTabId();
+
+  await sw.evaluate((id) => chrome.action.setBadgeText({ tabId: id, text: '4' }), tabId);
+  expect(await sw.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe('4');
+  await page.goto(`${fixture.url}?another-page`);
+  await expect.poll(() => sw.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe('');
+  await page.close();
+});
+
+// User-invoked activeTab grants cannot be synthesized by opening popup.html as a
+// regular tab. Page detection itself is covered by analyze.test.ts; test the
+// complete gesture manually by clicking the real extension icon in Chrome.

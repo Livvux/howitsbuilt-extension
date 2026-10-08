@@ -44,7 +44,7 @@ test('empty, unsupported, not-yet-scanned states', () => {
   renderPopup(root, { status: 'unsupported', url: 'chrome://x' });
   expect(root.textContent).toContain("Can't inspect this page");
   renderPopup(root, null);
-  expect(root.textContent).toContain('Reload the page to scan it');
+  expect(root.textContent).toContain('Scanning this page');
 });
 
 test('re-render replaces previous content', () => {

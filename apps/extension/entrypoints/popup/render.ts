@@ -68,7 +68,7 @@ export function renderPopup(root: HTMLElement, state: TabResult | null, account?
   let main: HTMLElement;
   let groups: [string, Detection[]][] = [];
   if (!state) {
-    main = message('Reload the page to scan it', 'Pages opened before the extension was installed are scanned on the next load.');
+    main = message('Scanning this page…', 'This page is inspected only when you open How Its Built.');
   } else if (state.status === 'unsupported') {
     main = message("Can't inspect this page", 'Chrome blocks extensions on internal pages, the Web Store and file viewers.');
   } else if (state.detections.length === 0) {

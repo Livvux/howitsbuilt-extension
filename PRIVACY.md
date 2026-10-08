@@ -1,18 +1,26 @@
 # Privacy — How Its Built extension
 
-**The free extension sends no data anywhere.** Detection runs entirely inside your browser.
+**Free technology detection is local.** The extension does not send scanned page contents or browsing history to our servers. It does not silently scan every page: detection starts only when you open the extension popup.
 
-What the extension reads, and why:
+## Permissions and local processing
 
 | Permission | Why |
 |---|---|
-| Access to all sites (`<all_urls>`) | To inspect the page you are on: its HTML, script URLs, meta tags, cookie names and JavaScript globals. Technologies are recognized from these signals. |
-| `webRequest` | To read the response headers of the page you load (for example `x-powered-by`, `server`). Headers are read, never modified or blocked. |
-| `scripting` | To run the detection script in the page when it finishes loading. |
-| `storage` | To keep the result for each open tab until you close it (`chrome.storage.session`, cleared when the browser closes). |
+| `activeTab` | Temporarily access the current website after you explicitly open the extension. Access ends when Chrome revokes the temporary grant. |
+| `scripting` | Run the bundled, read-only detection code on the active website. |
+| `storage` | Store an optional How Its Built account token locally. |
+| `https://howitsbuilt.fyi/*` | Connect to our account and Pro API and receive an optional sign-in token from our own website. This is the only persistent host permission. |
 
-Nothing is stored after the tab is closed, nothing is sold, and there are no analytics or trackers in the extension.
+While you invoke a scan, the extension locally reads website signals such as HTML, visible page text, meta tags, script URLs and inline scripts, selected DOM elements and JavaScript globals, and accessible cookie names **and values**. These signals may contain personal information depending on the website. They are matched to a bundled technology fingerprint database entirely in your browser. We do not transmit scanned HTML, page text, scripts, cookies or other page contents.
 
-**Optional account.** If you sign in on howitsbuilt.fyi/connect, a small script that runs only on howitsbuilt.fyi passes your session token to the extension, which stores it locally (`chrome.storage.local`). The extension then asks `howitsbuilt.fyi` which plan you have when you open the popup. Only when you open the **Details** tab (Pro) does it send the domain of the current tab to `howitsbuilt.fyi` to fetch versions and evidence. Signing out on the website ends the session; the extension then forgets the token. This is covered by the website's privacy policy: https://howitsbuilt.fyi/privacy
+Detection results are kept only in the popup while it is open; the extension can set a technology-count badge for the tab, cleared on navigation. No browsing history or scan results are persistently saved. The extension does not read network response headers or monitor browsing traffic.
+
+## Optional account and Pro features
+
+If you sign in through [howitsbuilt.fyi/connect](https://howitsbuilt.fyi/connect), a content script running **only on howitsbuilt.fyi** passes your session token to the extension. The token is kept in `chrome.storage.local`. While signed in, opening the popup requests your account email and subscription tier from `https://howitsbuilt.fyi/api/v1/me` to display account status. Only if a signed-in Pro user explicitly opens **Details** does the extension send the active website's **domain** to `https://howitsbuilt.fyi/api/v1/scan` for additional technology details.
+
+Signing out invalidates the session on the website; the extension removes the token when the API reports an invalid session. Optional account activity is also covered by the [website privacy policy](https://howitsbuilt.fyi/privacy).
+
+The extension itself includes no analytics, advertising or tracking SDKs. We do not sell browsing data or use it for unrelated purposes.
 
 Questions: https://github.com/Livvux/howitsbuilt-extension/issues
