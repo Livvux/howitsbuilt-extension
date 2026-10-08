@@ -60,3 +60,14 @@ test('empty injection result (page navigated away) → ok with no detections', a
   const r = await analyzeTab(3, 'https://x.test/');
   expect(r).toMatchObject({ status: 'ok', detections: [] });
 });
+
+test('SPA navigation (same document) keeps the headers captured for that document', async () => {
+  await browser.storage.session.set({ [headersKey(1)]: { url: 'https://x.test/', headers: { 'x-powered-by': 'Next.js 15' } } });
+  const exec = vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue([{ frameId: 0, documentId: 'doc-A', result: {} }] as any);
+  await analyzeTab(1, 'https://x.test/');
+  const r = await analyzeTab(1, 'https://x.test/pricing');
+  expect(r.status === 'ok' && r.detections.map((d) => d.tech)).toContain('Next.js');
+  exec.mockResolvedValue([{ frameId: 0, documentId: 'doc-B', result: {} }] as any);
+  const other = await analyzeTab(1, 'https://x.test/back');
+  expect(other.status === 'ok' && other.detections.map((d) => d.tech)).not.toContain('Next.js');
+});

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-10-08
+
+### Added
+- Sign in with your How Its Built account from the website to see Pro details (versions, confidence and evidence) in the popup.
+- A second scan a few seconds after load catches frameworks that hydrate late (for example React on large apps).
+
+### Fixed
+- Single-page apps keep header-based detections after in-app navigation.
+- Modern Angular sites are no longer hidden by a conflicting AngularDart match.
+- Closing a tab while it is being analyzed no longer logs errors.
+
 ## 0.1.0 — 2026-10-08
 
 ### Added

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { Detection } from '@howitsbuilt/engine';
-import { renderPopup } from '../entrypoints/popup/render';
+import { renderDetails, renderPopup } from '../entrypoints/popup/render';
 
 const js = { id: 12, name: 'JavaScript frameworks', priority: 8 };
 const ssg = { id: 57, name: 'Static site generator', priority: 9 };
@@ -70,4 +70,28 @@ test('copy button copies "Category: Tech, Tech" lines', async () => {
   renderPopup(root, { status: 'ok', url: 'https://vercel.com/', scannedAt: 0, detections: [nextjs, react, vercel] });
   root.querySelector<HTMLButtonElement>('[data-testid=copy]')!.click();
   expect(writeText).toHaveBeenCalledWith('vercel.com\nJavaScript frameworks: Next.js, React\nPaaS: Vercel');
+});
+
+test('signed out: offers sign-in for Pro details', () => {
+  renderPopup(root, { status: 'ok', url: 'https://a.test/', scannedAt: 0, detections: [react] }, { kind: 'signed-out' });
+  expect(root.querySelector<HTMLAnchorElement>('a[href="https://howitsbuilt.fyi/connect"]')!.textContent).toMatch(/sign in/i);
+});
+
+test('free account: upgrade link and email', () => {
+  renderPopup(root, { status: 'ok', url: 'https://a.test/', scannedAt: 0, detections: [react] }, { kind: 'account', email: 'u@x.com', pro: false });
+  expect(root.textContent).toContain('u@x.com');
+  expect(root.querySelector('a[href="https://howitsbuilt.fyi/pricing"]')!.textContent).toMatch(/upgrade/i);
+});
+
+test('pro account: details tab renders versions and evidence', () => {
+  const onDetails = vi.fn();
+  renderPopup(root, { status: 'ok', url: 'https://a.test/', scannedAt: 0, detections: [react] }, { kind: 'account', email: 'u@x.com', pro: true }, onDetails);
+  root.querySelector<HTMLButtonElement>('[data-testid=tab-details]')!.click();
+  expect(onDetails).toHaveBeenCalledWith('a.test');
+  const box = document.createElement('div');
+  renderDetails(box, { domain: 'a.test', scannedAt: 0, technologies: [{ name: 'Next.js', category: 'X', version: '15.2', confidence: 100, evidence: [{ source: 'header', key: 'x-powered-by', match: 'Next.js 15.2' }] }] });
+  expect(box.textContent).toContain('15.2');
+  expect(box.textContent).toContain('x-powered-by');
+  renderDetails(box, null);
+  expect(box.textContent).toMatch(/couldn.t load/i);
 });

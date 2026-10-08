@@ -13,6 +13,6 @@ What the extension reads, and why:
 
 Nothing is stored after the tab is closed, nothing is sold, and there are no analytics or trackers in the extension.
 
-How Its Built Pro (optional, paid) sends the URL of the page you choose to analyze to `howitsbuilt.fyi` when you open the Pro view. That is a separate, explicit action and is covered by the website's privacy policy.
+**Optional account.** If you sign in on howitsbuilt.fyi/connect, a small script that runs only on howitsbuilt.fyi passes your session token to the extension, which stores it locally (`chrome.storage.local`). The extension then asks `howitsbuilt.fyi` which plan you have when you open the popup. Only when you open the **Details** tab (Pro) does it send the domain of the current tab to `howitsbuilt.fyi` to fetch versions and evidence. Signing out on the website ends the session; the extension then forgets the token. This is covered by the website's privacy policy: https://howitsbuilt.fyi/privacy
 
 Questions: https://github.com/Livvux/howitsbuilt-extension/issues

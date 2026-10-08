@@ -9,7 +9,8 @@ test('manifest permissions are minimal', async () => {
   expect(m.name).toBe('How Its Built');
   expect([...m.permissions].sort()).toEqual(['scripting', 'storage', 'webRequest']);
   expect(m.host_permissions).toEqual(['<all_urls>']);
-  expect(m.content_scripts).toBeUndefined();
+  // Only the sign-in bridge, and only on our own site.
+  expect(m.content_scripts).toEqual([expect.objectContaining({ matches: ['https://howitsbuilt.fyi/*'] })]);
   expect(Object.keys(m.icons)).toEqual(expect.arrayContaining(['16', '32', '48', '128']));
 });
 

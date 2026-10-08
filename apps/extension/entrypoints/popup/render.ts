@@ -1,7 +1,12 @@
 import type { Category, Detection } from '@howitsbuilt/engine';
+import type { ProScan } from '@/lib/account';
 import type { TabResult } from '@/lib/analyze';
 
 const PRICING_URL = 'https://howitsbuilt.fyi/pricing';
+const CONNECT_URL = 'https://howitsbuilt.fyi/connect';
+
+/** undefined = not known yet (no account UI); the free popup works without an account. */
+export type AccountView = { kind: 'signed-out' } | { kind: 'account'; email: string; pro: boolean } | undefined;
 
 type Attrs = Record<string, string>;
 
@@ -49,7 +54,9 @@ function copyText(host: string, groups: [string, Detection[]][]): string {
   return [host, ...groups.map(([cat, items]) => `${cat}: ${items.map((d) => d.tech).join(', ')}`)].join('\n');
 }
 
-export function renderPopup(root: HTMLElement, state: TabResult | null): void {
+const link = (href: string, text: string, cls = 'pro') => h('a', { class: cls, href, target: '_blank', rel: 'noopener noreferrer' }, text);
+
+export function renderPopup(root: HTMLElement, state: TabResult | null, account?: AccountView, onDetails?: (domain: string) => void): void {
   const host = state ? hostOf(state.url) : '';
   const header = h(
     'header',
@@ -91,7 +98,40 @@ export function renderPopup(root: HTMLElement, state: TabResult | null): void {
     });
     footer.append(copy);
   }
-  footer.append(h('a', { class: 'pro', href: PRICING_URL, target: '_blank', rel: 'noopener noreferrer' }, 'Versions, hosting & evidence — Pro →'));
+  if (account?.kind === 'signed-out') footer.append(link(CONNECT_URL, 'Sign in for Pro details →'));
+  else if (account?.kind === 'account' && !account.pro) footer.append(link(PRICING_URL, 'Upgrade to Pro →'));
+  else if (!account) footer.append(link(PRICING_URL, 'Versions & evidence — Pro →'));
 
-  root.replaceChildren(header, main, footer);
+  main.setAttribute('data-region', 'main');
+  const parts: HTMLElement[] = [header];
+  if (account?.kind === 'account') parts.push(h('p', { class: 'account', 'data-testid': 'account' }, account.email, account.pro ? ' · Pro' : ' · Free'));
+  if (account?.kind === 'account' && account.pro && state?.status === 'ok') {
+    const details = h('button', { type: 'button', class: 'tab', 'data-testid': 'tab-details' }, 'Details');
+    const stack = h('button', { type: 'button', class: 'tab active', 'aria-pressed': 'true' }, 'Stack');
+    details.addEventListener('click', () => {
+      stack.classList.remove('active');
+      stack.setAttribute('aria-pressed', 'false');
+      details.classList.add('active');
+      details.setAttribute('aria-pressed', 'true');
+      onDetails?.(host);
+    });
+    stack.addEventListener('click', () => renderPopup(root, state, account, onDetails));
+    parts.push(h('nav', { class: 'tabs' }, stack, details));
+  }
+  root.replaceChildren(...parts, main, footer);
+}
+
+/** Pro details from the server: versions, confidence and evidence. `null` = could not load. */
+export function renderDetails(container: HTMLElement, scan: ProScan | null | 'loading'): void {
+  if (scan === 'loading') return container.replaceChildren(message('Loading details…', 'Fetching versions and evidence from How Its Built.'));
+  if (!scan) return container.replaceChildren(message("Couldn't load details", 'Check your connection, or sign in again from the website.'));
+  const rows = scan.technologies.map((t) =>
+    h(
+      'li',
+      { class: 'detail' },
+      h('div', { class: 'detail-head' }, h('span', { class: 'name' }, t.name), t.version ? h('span', { class: 'version' }, t.version) : '', h('span', { class: 'conf' }, `${t.confidence}%`)),
+      h('ul', { class: 'evidence' }, ...t.evidence.map((e) => h('li', {}, `${e.source === 'implies' ? 'implied by' : e.source}${e.key ? ` ${e.key}` : ''}: ${e.match}`))),
+    ),
+  );
+  container.replaceChildren(h('ul', { class: 'details' }, ...rows));
 }

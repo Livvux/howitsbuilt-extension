@@ -33,8 +33,19 @@ export function applyRelations(hits: Map<string, Hit>, byName: Map<string, Compi
     if (missingTech || missingCat) result.delete(name);
   }
 
-  const excluded = new Set([...result.keys()].flatMap((name) => byName.get(name)?.excludes ?? []));
-  for (const name of excluded) result.delete(name);
+  // Stronger matches exclude first, so mutual excludes (Angular ⇄ AngularDart) keep one tech, not none.
+  const strength = (name: string): [number, number, number] => {
+    const hit = result.get(name)!;
+    return [hit.confidence, hit.version ? 1 : 0, hit.evidence.length];
+  };
+  const order = [...result.keys()].sort((a, b) => {
+    const [sa, sb] = [strength(a), strength(b)];
+    return sb[0] - sa[0] || sb[1] - sa[1] || sb[2] - sa[2] || a.localeCompare(b);
+  });
+  for (const name of order) {
+    if (!result.has(name)) continue;
+    for (const ex of byName.get(name)?.excludes ?? []) result.delete(ex);
+  }
 
   return result;
 }
