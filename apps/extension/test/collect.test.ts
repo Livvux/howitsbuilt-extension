@@ -71,6 +71,40 @@ test('truncates huge pages', () => {
   expect(s.scripts![0]!.length).toBe(20_000);
 });
 
+test('a throwing page API (CSP sandbox cookie) does not lose the other signals', () => {
+  document.head.innerHTML = '<meta name="generator" content="Hugo">';
+  Object.defineProperty(document, 'cookie', {
+    get() {
+      throw new DOMException('sandboxed', 'SecurityError');
+    },
+    configurable: true,
+  });
+  try {
+    const s = collectSignals(none);
+    expect(s.meta).toEqual({ generator: ['Hugo'] });
+    expect(s.cookies).toEqual({});
+  } finally {
+    // The override is an own property; deleting it re-exposes the real accessor.
+    delete (document as any).cookie;
+  }
+});
+
+test('caps counts and value lengths of every signal', () => {
+  const long = 'z'.repeat(50_000);
+  document.head.innerHTML =
+    Array.from({ length: 1200 }, (_, i) => `<script src="/s${i}.js"></script>`).join('') +
+    `<meta name="description" content="${long}">` +
+    Array.from({ length: 1200 }, (_, i) => `<meta name="m${i}" content="x">`).join('');
+  document.body.innerHTML = `<a class="x" title="${long}">t</a>`;
+  (window as any).big = long;
+  const s = collectSignals({ js: ['big'], dom: [{ selector: 'a.x', text: false, attributes: ['title'], properties: [] }] });
+  expect(s.scriptSrc!.length).toBe(1000);
+  expect(Object.keys(s.meta!).length).toBeLessThanOrEqual(1000);
+  expect(s.meta!.description?.[0]?.length ?? 0).toBeLessThanOrEqual(2000);
+  expect(s.js!.big!.length).toBe(2000);
+  expect(s.dom!['a.x']!.attributes!.title!.length).toBe(2000);
+});
+
 test('is self-contained (serializable for executeScript)', () => {
   const src = collectSignals.toString();
   // Rebuilding from source must still work: no closures over module scope.
