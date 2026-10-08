@@ -15,4 +15,4 @@ Nothing is stored after the tab is closed, nothing is sold, and there are no ana
 
 How Its Built Pro (optional, paid) sends the URL of the page you choose to analyze to `howitsbuilt.fyi` when you open the Pro view. That is a separate, explicit action and is covered by the website's privacy policy.
 
-Contact: privacy@howitsbuilt.fyi
+Questions: https://github.com/Livvux/howitsbuilt-extension/issues
