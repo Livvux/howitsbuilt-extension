@@ -1,0 +1,15 @@
+@import '@fontsource/geist/400.css';
+@import '@fontsource/geist/500.css';
+@import '@fontsource/geist-mono/400.css';
+
+:root {
+  --bg: #0a0a0b;
+  --surface: #141416;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #ededef;
+  --muted: #9a9aa3;
+  --accent: #3ecf8e;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
