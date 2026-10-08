@@ -3,11 +3,14 @@ import type { CompiledTech, Evidence, EvidenceSource, Pattern, Signals } from '.
 
 export type Hit = { confidence: number; version?: string; evidence: Evidence[] };
 
+/** Signals with document-sized fields pre-chunked (see bound.ts). */
+export type Prepared = Omit<Signals, 'html' | 'scripts' | 'text'> & { html?: string[]; scripts?: string[]; text?: string[] };
+
 const EVIDENCE_MAX = 120;
 // Sources whose value is a whole document: show the matched excerpt, not the value.
 const EXCERPT_SOURCES = new Set<EvidenceSource>(['html', 'script', 'text']);
 
-export function matchTech(tech: CompiledTech, s: Signals): Hit | null {
+export function matchTech(tech: CompiledTech, s: Prepared): Hit | null {
   let confidence = 0;
   let version: string | undefined;
   const evidence: Evidence[] = [];
@@ -33,8 +36,8 @@ export function matchTech(tech: CompiledTech, s: Signals): Hit | null {
   const one = (v: string | undefined): string[] | undefined => (v === undefined ? undefined : [v]);
 
   test(tech.url, [s.url], 'url');
-  test(tech.html, one(s.html), 'html');
-  test(tech.text, one(s.text), 'text');
+  test(tech.html, s.html, 'html');
+  test(tech.text, s.text, 'text');
   test(tech.scriptSrc, s.scriptSrc, 'scriptSrc');
   test(tech.scripts, s.scripts, 'script');
   test(tech.certIssuer, one(s.certIssuer), 'cert');

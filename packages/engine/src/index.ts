@@ -1,5 +1,6 @@
+import { boundHtml, chunk } from './bound';
 import { compileTechnologies } from './compile';
-import { matchTech, type Hit } from './match';
+import { matchTech, type Hit, type Prepared } from './match';
 import { buildProbes } from './probes';
 import { applyRelations } from './relations';
 import type { Category, Detection, Probes, Signals } from './types';
@@ -14,6 +15,18 @@ export type Engine = {
 };
 
 const MAX_CONFIDENCE = 100;
+// Wall-clock budget for document-sized fields; afterwards only cheap fields are matched.
+// ponytail: coarse guard against hostile pages; a Worker with terminate() would be exact.
+const DOCUMENT_BUDGET_MS = 300;
+
+function prepare(s: Signals): Prepared {
+  return {
+    ...s,
+    html: s.html === undefined ? undefined : boundHtml(s.html),
+    scripts: s.scripts?.flatMap(chunk),
+    text: s.text === undefined ? undefined : chunk(s.text),
+  };
+}
 
 export function createEngine(
   technologies: Record<string, unknown>,
@@ -42,9 +55,12 @@ export function createEngine(
 
   return {
     match(signals) {
+      const full = prepare(signals);
+      const cheap: Prepared = { ...full, html: undefined, scripts: undefined, text: undefined };
+      const deadline = performance.now() + DOCUMENT_BUDGET_MS;
       const hits = new Map<string, Hit>();
       for (const tech of techs) {
-        const hit = matchTech(tech, signals);
+        const hit = matchTech(tech, performance.now() < deadline ? full : cheap);
         if (hit) hits.set(tech.name, hit);
       }
       return [...applyRelations(hits, byName)]
