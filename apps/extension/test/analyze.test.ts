@@ -27,12 +27,26 @@ test('executeScript rejection → unsupported (web store, pdf)', async () => {
 });
 
 test('merges stored headers with collected signals', async () => {
-  await browser.storage.session.set({ [headersKey(1)]: { 'x-powered-by': 'Next.js 15' } });
+  await browser.storage.session.set({ [headersKey(1)]: { url: 'https://x.test/', headers: { 'x-powered-by': 'Next.js 15' } } });
   const spy = vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue(injected({}));
   const r = await analyzeTab(1, 'https://x.test/');
   expect(r.status).toBe('ok');
   expect(r.status === 'ok' && r.detections.map((d) => d.tech)).toContain('Next.js');
   expect(spy.mock.calls[0]![0]).toMatchObject({ target: { tabId: 1 }, world: 'MAIN' });
+});
+
+test('headers captured for another document (bfcache, download, prerender) are ignored', async () => {
+  await browser.storage.session.set({ [headersKey(1)]: { url: 'https://other.test/', headers: { 'x-powered-by': 'Next.js 15' } } });
+  vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue(injected({}));
+  const r = await analyzeTab(1, 'https://x.test/');
+  expect(r.status === 'ok' && r.detections.map((d) => d.tech)).not.toContain('Next.js');
+});
+
+test('fragment-only difference still uses the headers', async () => {
+  await browser.storage.session.set({ [headersKey(1)]: { url: 'https://x.test/', headers: { 'x-powered-by': 'Next.js 15' } } });
+  vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue(injected({}));
+  const r = await analyzeTab(1, 'https://x.test/#pricing');
+  expect(r.status === 'ok' && r.detections.map((d) => d.tech)).toContain('Next.js');
 });
 
 test('missing headers (SW restart) still analyzes', async () => {

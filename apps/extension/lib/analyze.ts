@@ -6,9 +6,14 @@ export type TabResult =
   | { status: 'ok'; url: string; detections: Detection[]; scannedAt: number }
   | { status: 'unsupported'; url: string };
 
+/** Response headers of the last main-frame document loaded in a tab, tagged with its URL. */
+export type StoredHeaders = { url: string; headers: Record<string, string> };
+
 // Both live in chrome.storage.session so they survive service-worker restarts.
 export const resultKey = (tabId: number) => `result:${tabId}`;
 export const headersKey = (tabId: number) => `headers:${tabId}`;
+
+const withoutHash = (url: string): string => url.split('#')[0]!;
 
 /** `url` is undefined when Chrome hides it (chrome://, other extensions) — those can't be inspected. */
 export async function analyzeTab(tabId: number, url: string | undefined): Promise<TabResult> {
@@ -31,8 +36,9 @@ export async function analyzeTab(tabId: number, url: string | undefined): Promis
     return { status: 'unsupported', url };
   }
 
-  const stored = await browser.storage.session.get(headersKey(tabId));
-  const headers = stored[headersKey(tabId)] as Record<string, string> | undefined;
+  // bfcache restores, downloads and 204s leave the tab on a document whose headers we never saw.
+  const stored = (await browser.storage.session.get(headersKey(tabId)))[headersKey(tabId)] as StoredHeaders | undefined;
+  const headers = stored && withoutHash(stored.url) === withoutHash(url) ? stored.headers : undefined;
 
   return {
     status: 'ok',

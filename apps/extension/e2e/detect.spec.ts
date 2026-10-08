@@ -1,5 +1,6 @@
 import { chromium, expect, test, type BrowserContext, type Worker } from '@playwright/test';
 import { join } from 'node:path';
+import type { TabResult } from '../lib/analyze';
 import { startFixtureServer } from './fixture-server';
 
 const EXTENSION = join(import.meta.dirname, '..', '.output', 'chrome-mv3');
@@ -39,12 +40,10 @@ test('detects stack and sets badge', async () => {
   const result = await sw.evaluate(async () => {
     const [tab] = await chrome.tabs.query({ url: 'http://127.0.0.1/*' });
     const key = `result:${tab!.id}`;
-    return (await chrome.storage.session.get(key))[key];
+    return (await chrome.storage.session.get(key))[key] as TabResult;
   });
-  expect(result.status).toBe('ok');
-  expect(result.detections.map((d: { tech: string }) => d.tech)).toEqual(
-    expect.arrayContaining(['Next.js', 'WordPress', 'React', 'PHP']),
-  );
+  if (result.status !== 'ok') throw new Error(`expected ok, got ${result.status}`);
+  expect(result.detections.map((d) => d.tech)).toEqual(expect.arrayContaining(['Next.js', 'WordPress', 'React', 'PHP']));
   expect(await badge()).toBe(String(result.detections.length));
 });
 
@@ -56,7 +55,7 @@ test('internal pages are reported as unsupported', async () => {
     sw.evaluate(async () => {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const key = `result:${tab!.id}`;
-      return (await chrome.storage.session.get(key))[key]?.status;
+      return ((await chrome.storage.session.get(key))[key] as TabResult | undefined)?.status;
     });
   await page.bringToFront();
   await expect.poll(statusOfActiveTab, { timeout: 10_000 }).toBe('unsupported');

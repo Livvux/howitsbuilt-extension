@@ -1,4 +1,4 @@
-import { analyzeTab, headersKey, resultKey } from '@/lib/analyze';
+import { analyzeTab, headersKey, resultKey, type StoredHeaders } from '@/lib/analyze';
 
 const BADGE_BG = '#3ECF8E';
 const BADGE_TEXT = '#0A0A0B';
@@ -9,14 +9,16 @@ export default defineBackground(() => {
 
   browser.webRequest.onHeadersReceived.addListener(
     (details) => {
-      if (details.tabId < 0) return undefined;
+      // Prerendered documents share the tab id but aren't the page the user sees.
+      if (details.tabId < 0 || details.documentLifecycle === 'prerender') return undefined;
       const headers: Record<string, string> = {};
       for (const h of details.responseHeaders ?? []) {
         const name = h.name.toLowerCase();
         const value = h.value ?? '';
         headers[name] = name in headers ? `${headers[name]}, ${value}` : value;
       }
-      browser.storage.session.set({ [headersKey(details.tabId)]: headers }).catch(console.error);
+      const stored: StoredHeaders = { url: details.url, headers };
+      browser.storage.session.set({ [headersKey(details.tabId)]: stored }).catch(console.error);
       return undefined;
     },
     { urls: ['<all_urls>'], types: ['main_frame'] },
