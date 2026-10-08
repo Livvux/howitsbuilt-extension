@@ -14,6 +14,10 @@ test('non-http(s) url → unsupported without calling executeScript', async () =
   expect(spy).not.toHaveBeenCalled();
 });
 
+test('hidden url (chrome:// without "tabs" permission) → unsupported', async () => {
+  expect(await analyzeTab(1, undefined)).toEqual({ status: 'unsupported', url: '' });
+});
+
 test('executeScript rejection → unsupported (web store, pdf)', async () => {
   vi.spyOn(browser.scripting, 'executeScript').mockRejectedValue(new Error('Cannot access contents of the page'));
   expect(await analyzeTab(1, 'https://chromewebstore.google.com/x')).toEqual({

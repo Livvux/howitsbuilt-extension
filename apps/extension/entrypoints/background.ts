@@ -29,7 +29,7 @@ export default defineBackground(() => {
       browser.action.setBadgeText({ tabId, text: '' }).catch(console.error);
       return;
     }
-    if (info.status !== 'complete' || !tab.url) return;
+    if (info.status !== 'complete') return;
     analyzeTab(tabId, tab.url)
       .then(async (result) => {
         await browser.storage.session.set({ [resultKey(tabId)]: result });

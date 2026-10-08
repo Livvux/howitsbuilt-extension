@@ -10,7 +10,9 @@ export type TabResult =
 export const resultKey = (tabId: number) => `result:${tabId}`;
 export const headersKey = (tabId: number) => `headers:${tabId}`;
 
-export async function analyzeTab(tabId: number, url: string): Promise<TabResult> {
+/** `url` is undefined when Chrome hides it (chrome://, other extensions) — those can't be inspected. */
+export async function analyzeTab(tabId: number, url: string | undefined): Promise<TabResult> {
+  if (url === undefined) return { status: 'unsupported', url: '' };
   const protocol = URL.canParse(url) ? new URL(url).protocol : '';
   if (protocol !== 'http:' && protocol !== 'https:') return { status: 'unsupported', url };
 
