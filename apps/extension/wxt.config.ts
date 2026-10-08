@@ -9,8 +9,10 @@ export default defineConfig({
   manifest: {
     name: 'How Its Built',
     description: 'See how any website is built — frameworks, hosting, analytics and more.',
-    permissions: ['scripting', 'storage', 'webRequest'],
-    host_permissions: ['<all_urls>'],
+    permissions: ['activeTab', 'scripting', 'storage'],
+    // Only the account / Pro API needs a persistent host grant.
+    // Other sites are inspected only when the user opens the popup (activeTab).
+    host_permissions: ['https://howitsbuilt.fyi/*'],
     action: { default_title: 'How Its Built' },
   },
   hooks: {

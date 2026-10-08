@@ -3,18 +3,19 @@
 **Name:** How Its Built
 
 **Summary (≤ 132 chars):**
-See how any website is built: frameworks, CMS, analytics, hosting and more. Open source, runs locally.
+See how the current website is built: frameworks, CMS, analytics and more. Open source, private, on demand.
 
 **Description:**
 
-How Its Built shows the technology behind every site you visit. Open a page, click the icon, and get its stack grouped by category: frameworks, CMS, e-commerce, analytics, CDN, payment providers and more than 7,000 other technologies.
+How Its Built shows the technology behind the current website. Open a page, click the extension icon, and get its stack grouped by category: frameworks, CMS, e-commerce, analytics, CDNs, payment providers and many more technologies.
 
-- Runs locally. Detection happens in your browser; the free extension sends nothing to any server.
-- Badge count on every page, so you see at a glance how much is under the hood.
-- Copy the whole stack as text with one click.
+- Runs locally, only when you click. Free detection does not send scanned website content to a server.
+- Count of detected technologies in the toolbar badge after you scan a page.
+- Copy the detected stack as text with one click.
+- No permanent access to all websites. No background scanning.
 - Open source (GPL-3.0): github.com/Livvux/howitsbuilt-extension
 
-Want versions, hosting, DNS and mail providers, tracking IDs and the evidence behind every match? How Its Built Pro adds all of that for $4.99/month with a 7-day free trial: howitsbuilt.fyi
+Want versions, hosting, DNS and mail providers, tracking IDs and evidence behind matches? How Its Built Pro adds server-assisted details for $4.99/month with a 7-day free trial: howitsbuilt.fyi
 
 **Category:** Developer Tools
-**Single purpose:** Identify the technologies used by the website in the current tab.
+**Single purpose:** Identify the technologies used by the website in the active tab at the user's request.
