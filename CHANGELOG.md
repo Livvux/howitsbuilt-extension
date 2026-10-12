@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-10-12
+
+### Changed
+- Removed the broad "access all sites" permission. Pages are now inspected only when you open the popup (`activeTab`); the only persistent host access is the How Its Built account API.
+- Removed the unused `webRequest` permission.
+
 ## 0.2.0 — 2026-10-08
 
 ### Added
