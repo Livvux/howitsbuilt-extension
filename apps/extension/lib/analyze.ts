@@ -9,8 +9,8 @@ export type TabResult =
 /**
  * Inspect the active tab only after the user opens the extension popup.
  * activeTab grants temporary scripting access without permanent site permissions.
- * Response headers are intentionally not collected: webRequest would require
- * observing navigation before the user explicitly invokes the extension.
+ * Response headers come from a same-origin HEAD of the origin root issued by the
+ * injected script (see collect.ts); no webRequest observation of navigation.
  */
 export async function analyzeTab(tabId: number, url: string | undefined): Promise<TabResult> {
   if (url === undefined) return { status: 'unsupported', url: '' };

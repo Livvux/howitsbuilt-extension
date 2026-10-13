@@ -1,20 +1,22 @@
 import type { DomResult, Probes, Signals } from '@howitsbuilt/engine';
 
-export type CollectedSignals = Omit<Signals, 'url' | 'headers' | 'dns' | 'certIssuer'>;
+export type CollectedSignals = Omit<Signals, 'url' | 'dns' | 'certIssuer'>;
 
 /**
  * Runs in the page's MAIN world via chrome.scripting.executeScript({ func, args }).
  * Must stay self-contained: it is serialized with Function#toString, so no imports,
  * no module-scope references, and limits are literals.
  * The page is hostile: every section is isolated and every value is capped.
+ * Async: executeScript awaits the returned promise.
  */
-export function collectSignals(probes: Probes): CollectedSignals {
+export async function collectSignals(probes: Probes): Promise<CollectedSignals> {
   const HTML_MAX = 1_000_000;
   const TEXT_MAX = 100_000;
   const SCRIPTS_MAX = 50;
   const SCRIPT_MAX = 20_000;
   const ITEMS_MAX = 1000;
   const VALUE_MAX = 2000;
+  const HEADERS_TIMEOUT_MS = 2500;
 
   // A page can break any DOM API (CSP sandbox cookies, overridden getters); lose one section, not all.
   const safe = <T,>(read: () => T, fallback: T): T => {
@@ -27,6 +29,42 @@ export function collectSignals(probes: Probes): CollectedSignals {
   const cap = (v: string, max = VALUE_MAX): string => v.slice(0, max);
   // Objects/functions count as "exists" with an empty value; primitives are stringified.
   const stringify = (v: unknown): string => (typeof v === 'object' || typeof v === 'function' ? '' : cap(String(v)));
+
+  // Response headers come from a cookieless HEAD of the origin root (never the current URL: it may have
+  // GET side effects). Any failure yields {}.
+  const ctl = new AbortController();
+  const readHeaders = async (): Promise<Record<string, string>> => {
+    try {
+      const res = await fetch(location.origin + '/', {
+        method: 'HEAD',
+        credentials: 'omit',
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: ctl.signal,
+      });
+      // A redirect to another site would attribute foreign headers to this page.
+      if (res.url && new URL(res.url).origin !== location.origin) return {};
+      const out: Record<string, string> = {};
+      let count = 0;
+      for (const [name, value] of Array.from(res.headers)) {
+        if (++count > ITEMS_MAX) break;
+        out[cap(name.toLowerCase())] = cap(value);
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  };
+  // Raced against a plain timer: a page that replaced fetch with a never-resolving stub must not stall the scan.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<Record<string, string>>((resolve) => {
+    timer = setTimeout(() => {
+      ctl.abort();
+      resolve({});
+    }, HEADERS_TIMEOUT_MS);
+  });
+  const headers = await Promise.race([readHeaders(), timeout]);
+  clearTimeout(timer);
 
   const meta = safe(() => {
     const out: Record<string, string[]> = {};
@@ -99,6 +137,7 @@ export function collectSignals(probes: Probes): CollectedSignals {
     meta,
     scriptSrc,
     scripts,
+    headers,
     cookies,
     js,
     dom,
