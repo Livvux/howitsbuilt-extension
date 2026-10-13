@@ -9,7 +9,7 @@ test('manifest requests access only to the invoked tab and our account service',
   expect(m.default_locale).toBe('en');
   expect(m.name).toBe('__MSG_extName__');
   expect(m.description).toBe('__MSG_extDescription__');
-  expect(m.action.default_title).toBe('__MSG_extName__');
+  expect(m.action.default_title).toBe('How Its Built'); // from the popup <title>: Chrome does not substitute __MSG_*__ in HTML
   expect(m.commands._execute_action.description).toBe('__MSG_cmdScan__');
   expect([...m.permissions].sort()).toEqual(['activeTab', 'scripting', 'storage']);
   expect(m.host_permissions).toEqual(['https://howitsbuilt.fyi/*']);
