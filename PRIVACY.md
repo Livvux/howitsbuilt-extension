@@ -8,16 +8,16 @@
 |---|---|
 | `activeTab` | Temporarily access the current website after you explicitly open the extension. Access ends when Chrome revokes the temporary grant. |
 | `scripting` | Run the bundled, read-only detection code on the active website. |
-| `storage` | Store an optional How Its Built account token locally. |
+| `storage` | Store an optional How Its Built account token locally, and briefly cache Pro results in session storage (cleared when the browser closes). |
 | `https://howitsbuilt.fyi/*` | Connect to our account and Pro API and receive an optional sign-in token from our own website. This is the only persistent host permission. |
 
-While you invoke a scan, the extension locally reads website signals such as HTML, visible page text, meta tags, script URLs and inline scripts, selected DOM elements and JavaScript globals, and accessible cookie names **and values**. These signals may contain personal information depending on the website. They are matched to a bundled technology fingerprint database entirely in your browser. We do not transmit scanned HTML, page text, scripts, cookies or other page contents.
+While you invoke a scan, the extension locally reads website signals such as HTML, visible page text, meta tags, script URLs and inline scripts, selected DOM elements and JavaScript globals, and accessible cookie names **and values**. It also sends one cookieless `HEAD` request to the website's own homepage (`https://<site>/`) to read its HTTP response headers (for example `server`); this request goes only to the website you are scanning, never to us. These signals may contain personal information depending on the website. They are matched to a bundled technology fingerprint database entirely in your browser. We do not transmit scanned HTML, page text, scripts, cookies, headers or other page contents.
 
-Detection results are kept only in the popup while it is open; the extension can set a technology-count badge for the tab, cleared on navigation. No browsing history or scan results are persistently saved. The extension does not read network response headers or monitor browsing traffic.
+Detection results are kept only in the popup while it is open; the extension can set a technology-count badge for the tab, cleared on navigation. No browsing history or scan results are persistently saved. The extension does not monitor browsing traffic.
 
 ## Optional account and Pro features
 
-If you sign in through [howitsbuilt.fyi/connect](https://howitsbuilt.fyi/connect), a content script running **only on howitsbuilt.fyi** passes your session token to the extension. The token is kept in `chrome.storage.local`. While signed in, opening the popup requests your account email and subscription tier from `https://howitsbuilt.fyi/api/v1/me` to display account status. Only if a signed-in Pro user explicitly opens **Details** does the extension send the active website's **domain** to `https://howitsbuilt.fyi/api/v1/scan` for additional technology details.
+If you sign in through [howitsbuilt.fyi/connect](https://howitsbuilt.fyi/connect), a content script running **only on howitsbuilt.fyi** passes your session token to the extension. The token is kept in `chrome.storage.local`. While signed in, opening the popup requests your account email and subscription tier from `https://howitsbuilt.fyi/api/v1/me` to display account status. For signed-in **Pro** users, opening the popup on a website also sends that website's **domain** (not its contents) to `https://howitsbuilt.fyi/api/v1/scan` to show additional technology details. The response is cached in session storage for up to 10 minutes and cleared on sign-in or sign-out. Free and signed-out users never send domains.
 
 Signing out invalidates the session on the website; the extension removes the token when the API reports an invalid session. Optional account activity is also covered by the [website privacy policy](https://howitsbuilt.fyi/privacy).
 
