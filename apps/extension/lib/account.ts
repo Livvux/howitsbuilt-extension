@@ -38,6 +38,15 @@ export async function fetchMe(token: string): Promise<Me | null> {
   return r?.data ?? null;
 }
 
+const PRIVATE_SUFFIXES = ['.local', '.internal', '.lan', '.localhost'];
+
+/** Only public-looking hostnames may leave the browser: no single-label names, localhost, private suffixes or IP literals. */
+export function isPublicHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  if (!h.includes('.') || h === 'localhost' || h.includes(':') || /^\d+(\.\d+){3}$/.test(h)) return false;
+  return !PRIVATE_SUFFIXES.some((s) => h.endsWith(s));
+}
+
 const PRO_TTL_MS = 10 * 60 * 1000;
 type CachedScan = { at: number; scan: ProScan };
 
@@ -49,7 +58,12 @@ export async function fetchProScan(token: string, domain: string): Promise<ProSc
   const r = await api<ProScan>(token, `/api/v1/scan?domain=${encodeURIComponent(domain)}`);
   if (r?.status === 401) await clearToken();
   const scan = r?.data;
-  if (!scan || !scan.technologies.every((t) => typeof t.confidence === 'number')) return null;
+  if (
+    !scan ||
+    !Array.isArray(scan.technologies) ||
+    !scan.technologies.every((t) => typeof t?.name === 'string' && typeof t.confidence === 'number' && Array.isArray(t.evidence))
+  )
+    return null;
   await browser.storage.session.set({ [key]: { at: Date.now(), scan } satisfies CachedScan });
   return scan;
 }

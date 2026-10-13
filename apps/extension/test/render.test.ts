@@ -195,3 +195,16 @@ test('an icon that fails to load is replaced by the letter placeholder', () => {
   expect(root.querySelector('img')).toBeNull();
   expect(root.querySelector('[data-testid=tech] .icon.placeholder')!.textContent).toBe('N');
 });
+
+test('Pro-only tech links its website only for http(s) URLs', () => {
+  const tech = (name: string, website: string) => ({ name, category: 'X', website, confidence: 90, evidence: [] });
+  const pro: ProScan = {
+    domain: 'a.com', scannedAt: 0,
+    technologies: [tech('Safe', 'https://safe.example'), tech('Evil', 'javascript:alert(1)'), tech('Junk', 'not a url')],
+  };
+  renderPopup(root, { status: 'ok', url: 'https://a.com/', scannedAt: 0, detections: [react] }, undefined, { pro });
+  const hrefs = [...root.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+  expect(hrefs).toContain('https://safe.example');
+  expect(hrefs.some((h) => h?.startsWith('javascript:') || h === 'not a url')).toBe(false);
+  expect(root.querySelectorAll('[data-testid=tech]')).toHaveLength(4);
+});

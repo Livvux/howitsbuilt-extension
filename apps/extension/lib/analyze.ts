@@ -2,6 +2,9 @@ import type { Detection } from '@howitsbuilt/engine';
 import { collectSignals, type CollectedSignals } from './collect';
 import { getEngine } from './engine';
 
+// Raced in the popup realm: the page cannot patch this timer, so a hung injection cannot stall the popup.
+const SCAN_TIMEOUT_MS = 5000;
+
 export type TabResult =
   | { status: 'ok'; url: string; detections: Detection[]; scannedAt: number }
   | { status: 'unsupported'; url: string };
@@ -27,7 +30,11 @@ export async function analyzeTab(tabId: number, url: string | undefined): Promis
       args: [engine.probes],
     });
     engine.warm(); // compile patterns while the page collects its signals
-    const [injection] = await injecting;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('scan timed out')), SCAN_TIMEOUT_MS);
+    });
+    const [injection] = await Promise.race([injecting, timeout]).finally(() => clearTimeout(timer));
     collected = injection?.result as CollectedSignals | undefined;
   } catch {
     // Chrome blocks injection on internal pages, the Web Store, PDF viewers,

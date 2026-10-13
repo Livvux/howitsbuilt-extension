@@ -1,5 +1,5 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { clearToken, fetchMe, fetchProScan, getToken, setToken, SITE_ORIGIN, tokenKey } from '../lib/account';
+import { clearToken, fetchMe, fetchProScan, getToken, isPublicHost, setToken, SITE_ORIGIN, tokenKey } from '../lib/account';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -71,4 +71,20 @@ test('setToken and clearToken drop the Pro scan cache', async () => {
   await clearToken();
   expect(await browser.storage.session.get(null)).toEqual({});
   expect(await getToken()).toBeNull();
+});
+
+test('fetchProScan rejects and does not cache technologies without a name or evidence array', async () => {
+  const bad = (t: unknown) => ({ domain: 'a.com', scannedAt: 1, technologies: [t] });
+  const spy = vi.spyOn(globalThis, 'fetch');
+  for (const t of [{ category: 'X', confidence: 1, evidence: [] }, { name: 'X', category: 'Y', confidence: 1 }, { name: 'X', category: 'Y', confidence: 1, evidence: 'no' }, null]) {
+    spy.mockResolvedValue(json(200, { success: true, data: bad(t), error: null }));
+    expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
+  }
+  expect(await browser.storage.session.get(null)).toEqual({});
+});
+
+test('isPublicHost only allows public-looking hostnames', () => {
+  for (const h of ['example.com', 'www.Example.co.uk', 'a.b.io']) expect(isPublicHost(h), h).toBe(true);
+  for (const h of ['localhost', 'intranet', 'x.local', 'x.internal', 'nas.lan', 'app.localhost', '127.0.0.1', '192.168.1.5', '[::1]', '::1', 'example.com.local', ''])
+    expect(isPublicHost(h), h).toBe(false);
 });

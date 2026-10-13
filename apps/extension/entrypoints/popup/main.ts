@@ -1,6 +1,6 @@
 import '@/assets/tokens.css';
 import './style.css';
-import { fetchMe, fetchProScan, getToken } from '@/lib/account';
+import { fetchMe, fetchProScan, getToken, isPublicHost } from '@/lib/account';
 import { analyzeTab, type TabResult } from '@/lib/analyze';
 import { hostOf, renderPopup, type AccountView, type PopupState, type ProView } from './render';
 
@@ -20,6 +20,8 @@ async function init(): Promise<void> {
   let pro: ProView;
   let proStarted = false;
   let shown = 0;
+  let scanning = false;
+  let proHost = '';
 
   const draw = () => renderPopup(root, state, account, { pro, onRescan: () => void rescan() });
   draw(); // Display an immediate scanning state instead of waiting for account/API calls.
@@ -27,15 +29,21 @@ async function init(): Promise<void> {
   // Opening the toolbar popup is the user gesture that grants activeTab access.
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id;
+  let tabUrl = tab?.url;
 
   // Pro accounts get the server scan merged into the list; it never blocks the local render.
   const loadPro = async () => {
     if (proStarted || !token || !(account?.kind === 'account' && account.pro)) return;
     if (!state || state === 'error' || state.status !== 'ok') return;
+    const host = hostOf(state.url);
+    if (!isPublicHost(host)) return; // never send private/local hosts to the server
     proStarted = true;
+    proHost = host;
     pro = 'loading';
     draw();
-    pro = (await fetchProScan(token, hostOf(state.url)).catch(() => null)) ?? 'error';
+    const scan = (await fetchProScan(token, host).catch(() => null)) ?? 'error';
+    if (proHost !== host) return; // the page changed during the request: a newer scan owns this view
+    pro = scan;
     draw();
   };
 
@@ -48,15 +56,27 @@ async function init(): Promise<void> {
   };
 
   async function rescan(): Promise<TabResult | undefined> {
-    if (tabId === undefined) return;
+    if (tabId === undefined || scanning) return;
+    scanning = true;
     try {
-      const result = await analyzeTab(tabId, tab?.url);
+      const [current] = await browser.tabs.query({ active: true, currentWindow: true });
+      if (current?.id !== tabId) return;
+      tabUrl = current.url;
+      const result = await analyzeTab(tabId, tabUrl);
+      if (result.status === 'ok' && hostOf(result.url) !== proHost) {
+        proStarted = false;
+        proHost = '';
+        // navigated to another site: the old Pro result does not apply
+        pro = undefined;
+      }
       await apply(result);
       return result;
     } catch (err) {
       console.error(err);
       state = 'error';
       draw();
+    } finally {
+      scanning = false;
     }
   }
 
@@ -88,9 +108,9 @@ async function init(): Promise<void> {
   // the popup open, and only while the originally invoked page is still active.
   await new Promise((resolve) => setTimeout(resolve, SECOND_PASS_MS));
   const [current] = await browser.tabs.query({ active: true, currentWindow: true });
-  if (current?.id !== tabId || current.url !== tab?.url) return;
+  if (current?.id !== tabId || current.url !== tabUrl) return;
   try {
-    const second = await analyzeTab(tabId, tab?.url);
+    const second = await analyzeTab(tabId, tabUrl);
     if (detectionCount(second) > shown) await apply(second);
   } catch (err) {
     console.error(err); // keep the first result on screen
@@ -99,5 +119,5 @@ async function init(): Promise<void> {
 
 init().catch((err) => {
   console.error(err);
-  renderPopup(root, 'error');
+  renderPopup(root, 'error', undefined, { onRescan: () => location.reload() });
 });

@@ -46,6 +46,7 @@ function groupByCategory(detections: Detection[]): Groups {
 export const hostOf = (url: string): string => (URL.canParse(url) ? new URL(url).hostname : url);
 
 const lc = (s: string) => s.toLowerCase();
+const isWebUrl = (u: string) => URL.canParse(u) && /^https?:$/.test(new URL(u).protocol);
 
 /** Local rows gain the server version when they have none; techs only the server found come back separately. */
 export function mergePro(local: Detection[], scan: ProScan | undefined): { rows: Row[]; serverOnly: Row[] } {
@@ -61,7 +62,7 @@ export function mergePro(local: Detection[], scan: ProScan | undefined): { rows:
       d: {
         tech: t.name,
         ...(t.icon ? { icon: t.icon } : {}),
-        ...(t.website ? { website: t.website } : {}),
+        ...(t.website && isWebUrl(t.website) ? { website: t.website } : {}),
         ...(t.version ? { version: t.version } : {}),
         categories: [{ id: 0, name: t.category, priority: Infinity }],
         confidence: t.confidence,
