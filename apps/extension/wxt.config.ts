@@ -6,6 +6,7 @@ import { defineConfig } from 'wxt';
 const ICONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../packages/engine/data/icons');
 
 export default defineConfig({
+  manifestVersion: 3, // WXT defaults Firefox to MV2
   manifest: ({ browser }) => ({
     name: 'How Its Built',
     description: 'See how any website is built — frameworks, hosting, analytics and more.',
