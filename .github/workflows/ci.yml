@@ -18,5 +18,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter extension build:firefox
+      - run: npx -y web-ext@10.7.0 lint --source-dir apps/extension/.output/firefox-mv3
       - run: pnpm --filter extension exec playwright install --with-deps chromium
       - run: pnpm --filter extension e2e

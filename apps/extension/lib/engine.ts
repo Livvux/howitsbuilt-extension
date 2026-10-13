@@ -4,7 +4,7 @@ import technologies from '@howitsbuilt/engine/data/technologies.json';
 
 let engine: Engine | undefined;
 
-/** Compiled once per service-worker lifetime (~40 ms). */
+/** Created on every popup open (the popup is a fresh page each time); only probes are built here, patterns compile via warm()/match(). */
 export function getEngine(): Engine {
   engine ??= createEngine(technologies as Record<string, unknown>, categories);
   return engine;

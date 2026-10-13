@@ -7,10 +7,10 @@ const PAGE = `<!doctype html>
 <title>Fixture</title>
 </head><body><h1>Fixture</h1></body></html>`;
 
-/** Serves one page whose stack the extension must detect. Returns its URL and a close fn. */
+/** Serves one page whose stack the extension must detect (Caddy is detectable only from the Server header). Returns its URL and a close fn. */
 export async function startFixtureServer(): Promise<{ url: string; close: () => Promise<void> }> {
   const server: Server = createServer((_, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/html', 'X-Powered-By': 'Next.js 15.2.1' });
+    res.writeHead(200, { 'Content-Type': 'text/html', 'X-Powered-By': 'Next.js 15.2.1', Server: 'Caddy' });
     res.end(PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

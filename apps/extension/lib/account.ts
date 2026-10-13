@@ -11,8 +11,15 @@ export type ProScan = { domain: string; scannedAt: number; technologies: ProTech
 type Envelope<T> = { success: boolean; data: T | null };
 
 export const getToken = async (): Promise<string | null> => ((await browser.storage.local.get(tokenKey))[tokenKey] as string | undefined) ?? null;
-export const setToken = (token: string) => browser.storage.local.set({ [tokenKey]: token });
-export const clearToken = () => browser.storage.local.remove(tokenKey);
+// storage.session holds only the per-domain Pro scan cache, so clearing it on any token change keeps one account's data from leaking to the next.
+export const setToken = async (token: string) => {
+  await browser.storage.session.clear();
+  await browser.storage.local.set({ [tokenKey]: token });
+};
+export const clearToken = async () => {
+  await browser.storage.session.clear();
+  await browser.storage.local.remove(tokenKey);
+};
 
 async function api<T>(token: string, path: string): Promise<{ status: number; data: T | null } | null> {
   try {
@@ -31,12 +38,34 @@ export async function fetchMe(token: string): Promise<Me | null> {
   return r?.data ?? null;
 }
 
-/** Server-side Pro view of a domain; null unless the response actually carries Pro fields. */
+const PRIVATE_SUFFIXES = ['.local', '.internal', '.lan', '.localhost'];
+
+/** Only public-looking hostnames may leave the browser: no single-label names, localhost, private suffixes or IP literals. */
+export function isPublicHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  if (!h.includes('.') || h === 'localhost' || h.includes(':') || /^\d+(\.\d+){3}$/.test(h)) return false;
+  return !PRIVATE_SUFFIXES.some((s) => h.endsWith(s));
+}
+
+const PRO_TTL_MS = 10 * 60 * 1000;
+type CachedScan = { at: number; scan: ProScan };
+
+/** Server-side Pro view of a domain; null unless the response actually carries Pro fields. Cached 10 min per domain. */
 export async function fetchProScan(token: string, domain: string): Promise<ProScan | null> {
+  const key = `pro:${domain}`;
+  const cached = (await browser.storage.session.get(key))[key] as CachedScan | undefined;
+  if (cached && Date.now() - cached.at < PRO_TTL_MS) return cached.scan;
   const r = await api<ProScan>(token, `/api/v1/scan?domain=${encodeURIComponent(domain)}`);
   if (r?.status === 401) await clearToken();
   const scan = r?.data;
-  return scan && scan.technologies.every((t) => typeof t.confidence === 'number') ? scan : null;
+  if (
+    !scan ||
+    !Array.isArray(scan.technologies) ||
+    !scan.technologies.every((t) => typeof t?.name === 'string' && typeof t.confidence === 'number' && Array.isArray(t.evidence))
+  )
+    return null;
+  await browser.storage.session.set({ [key]: { at: Date.now(), scan } satisfies CachedScan });
+  return scan;
 }
 
 /** Content script on howitsbuilt.fyi: relays the token posted by /connect to the background. */

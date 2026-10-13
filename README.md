@@ -12,13 +12,16 @@ Fingerprints come from [enthec/webappanalyzer](https://github.com/enthec/webappa
 pnpm install
 pnpm test
 pnpm build
-pnpm --filter extension zip
+pnpm --filter extension zip           # Chrome / Edge
+pnpm --filter extension zip:firefox   # Firefox (AMO, incl. sources zip)
 ```
+
+Fingerprints are synced weekly from upstream by the `Update fingerprints` workflow (opens a PR).
 
 ## Chrome Web Store permissions
 
 - `activeTab` + `scripting`: inspect the tab only when the user opens the popup.
-- `storage`: locally retain the optional account token.
+- `storage`: locally retain the optional account token (and a 10-minute Pro result cache in session storage).
 - `https://howitsbuilt.fyi/*`: optional sign-in and Pro API only.
 
-The previous automatic badge scanning and HTTP response-header detection have been removed to avoid `<all_urls>` and `webRequest`. Technologies detected **only** from response headers may no longer appear in the free scan; Pro details can provide additional server-side evidence. For store-submission text see [SUBMISSION.md](apps/extension/store/SUBMISSION.md).
+There is no `<all_urls>` or `webRequest`: response headers are read from one cookieless same-origin `HEAD` request to the site's homepage during the scan. Shortcut: `Alt+Shift+H`. For store-submission text see [SUBMISSION.md](apps/extension/store/SUBMISSION.md).

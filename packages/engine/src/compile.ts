@@ -4,8 +4,8 @@ import type { CompiledTech, DomRule, Implied, Pattern } from './types';
 type Raw = Record<string, unknown>;
 
 const asArray = (v: unknown): unknown[] => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
-const asStrings = (v: unknown): string[] => asArray(v).filter((x): x is string => typeof x === 'string');
-const isObject = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const asStrings = (v: unknown): string[] => asArray(v).filter((x): x is string => typeof x === 'string');
+export const isObject = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 export function compileTechnologies(raw: Record<string, unknown>): { techs: CompiledTech[]; invalidPatterns: number } {
   let invalidPatterns = 0;

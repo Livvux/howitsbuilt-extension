@@ -1,6 +1,6 @@
-# Chrome Web Store submission — v0.2.1
+# Chrome Web Store submission — v0.3.0
 
-Dashboard: https://chrome.google.com/webstore/devconsole → upload a fresh build of `apps/extension/.output/extension-0.2.1-chrome.zip`.
+Dashboard: https://chrome.google.com/webstore/devconsole → upload a fresh build of `apps/extension/.output/extension-0.3.0-chrome.zip`.
 
 Build the ZIP from this branch (or after merging):
 
@@ -38,14 +38,14 @@ Do **not** upload the old v0.2.0 release ZIP: it still requests access to all si
 |---|---|
 | `activeTab` | Grants temporary access to the current website only after the user opens the extension popup to request a technology scan. |
 | `scripting` | Injects bundled, read-only detection code into the user-invoked active tab. It reads HTML, scripts, meta tags, cookie names and values, and other website signals locally without altering pages. |
-| `storage` | Stores only the optional account sign-in token in `chrome.storage.local`. No persistent scan history is kept. |
+| `storage` | Stores only the optional account sign-in token in `chrome.storage.local`, plus a short-lived Pro result cache in `chrome.storage.session`. No persistent scan history is kept. |
 | Host permission `https://howitsbuilt.fyi/*` | Necessary to authenticate with our account and Pro API; this is the only permanently accessible host. The same host runs a dedicated sign-in bridge content script. |
 
-**No `webRequest` and no `<all_urls>` permission.** HTTP response headers and automatic per-navigation scans are not included in the free scan.
+**No `webRequest` and no `<all_urls>` permission.** Response headers are read from one cookieless same-origin `HEAD` request issued by the injected detection code during a user-invoked scan. There are no automatic per-navigation scans.
 
 **Remote code:** No. All JavaScript and fingerprint data are bundled. Signed-in account/Pro requests fetch JSON, not executable code.
 
-**Data usage:** Disclose **Personally identifiable information** (account email), **Authentication information** (optional local session token), **Web history** (current domain sent for explicitly requested Pro details), and **Website content** (HTML, scripts, text, cookies and DOM inspected locally). The free scan does not send this page content to any server. For other data types, check the actual production website/API behavior before submitting.
+**Data usage:** Disclose **Personally identifiable information** (account email), **Authentication information** (optional local session token), **Web history** (current domain sent to the Pro API when a signed-in Pro user opens the popup), and **Website content** (HTML, scripts, text, cookies and DOM inspected locally). The free scan does not send this page content to any server. For other data types, check the actual production website/API behavior before submitting.
 
 **Certifications:** Tick all three only after confirming the account/Pro backend also meets the Chrome Web Store user-data policy.
 
@@ -63,5 +63,5 @@ After approval, replace the GitHub-release link in the web app's `content/links.
 
 1. Opening the toolbar popup grants `activeTab` and starts scanning the current page.
 2. The toolbar badge shows the count only after the scan and resets when the page navigates.
-3. Automatic per-page badge updates and header-only fingerprints are no longer available in the free extension.
+3. Automatic per-page badge updates are not available; header-based fingerprints work again via a same-origin `HEAD` request during the scan.
 4. Optional account status and Pro details still use the narrowly scoped `howitsbuilt.fyi` host permission.

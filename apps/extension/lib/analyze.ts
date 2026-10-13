@@ -2,6 +2,9 @@ import type { Detection } from '@howitsbuilt/engine';
 import { collectSignals, type CollectedSignals } from './collect';
 import { getEngine } from './engine';
 
+// Raced in the popup realm: the page cannot patch this timer, so a hung injection cannot stall the popup.
+const SCAN_TIMEOUT_MS = 5000;
+
 export type TabResult =
   | { status: 'ok'; url: string; detections: Detection[]; scannedAt: number }
   | { status: 'unsupported'; url: string };
@@ -9,8 +12,8 @@ export type TabResult =
 /**
  * Inspect the active tab only after the user opens the extension popup.
  * activeTab grants temporary scripting access without permanent site permissions.
- * Response headers are intentionally not collected: webRequest would require
- * observing navigation before the user explicitly invokes the extension.
+ * Response headers come from a same-origin HEAD of the origin root issued by the
+ * injected script (see collect.ts); no webRequest observation of navigation.
  */
 export async function analyzeTab(tabId: number, url: string | undefined): Promise<TabResult> {
   if (url === undefined) return { status: 'unsupported', url: '' };
@@ -20,12 +23,18 @@ export async function analyzeTab(tabId: number, url: string | undefined): Promis
   const engine = getEngine();
   let collected: CollectedSignals | undefined;
   try {
-    const [injection] = await browser.scripting.executeScript({
+    const injecting = browser.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
       func: collectSignals,
       args: [engine.probes],
     });
+    engine.warm(); // compile patterns while the page collects its signals
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('scan timed out')), SCAN_TIMEOUT_MS);
+    });
+    const [injection] = await Promise.race([injecting, timeout]).finally(() => clearTimeout(timer));
     collected = injection?.result as CollectedSignals | undefined;
   } catch {
     // Chrome blocks injection on internal pages, the Web Store, PDF viewers,

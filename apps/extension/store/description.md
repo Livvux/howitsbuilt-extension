@@ -11,11 +11,13 @@ How Its Built shows the technology behind the current website. Open a page, clic
 
 - Runs locally, only when you click. Free detection does not send scanned website content to a server.
 - Count of detected technologies in the toolbar badge after you scan a page.
-- Copy the detected stack as text with one click.
+- Versions where the page reveals them, and server software from response headers.
+- Copy the detected stack as text, Markdown or JSON; filter long lists.
+- Keyboard shortcut: Alt+Shift+H.
 - No permanent access to all websites. No background scanning.
 - Open source (GPL-3.0): github.com/Livvux/howitsbuilt-extension
 
-Want versions, hosting, DNS and mail providers, tracking IDs and evidence behind matches? How Its Built Pro adds server-assisted details for $4.99/month with a 7-day free trial: howitsbuilt.fyi
+Want hosting, DNS and mail providers, tracking IDs and server-side evidence? How Its Built Pro adds server-assisted details for $4.99/month with a 7-day free trial: howitsbuilt.fyi
 
 **Category:** Developer Tools
 **Single purpose:** Identify the technologies used by the website in the active tab at the user's request.
