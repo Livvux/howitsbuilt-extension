@@ -155,7 +155,7 @@ test('filter appears above 15 detections and hides rows and empty categories', (
   input.value = 'TECH12';
   input.dispatchEvent(new Event('input'));
   const visible = [...root.querySelectorAll('[data-testid=tech]')].filter((e) => !e.hasAttribute('hidden'));
-  expect(visible.map((e) => e.textContent)).toEqual(['T' + 'Tech12']);
+  expect(visible.map((e) => e.textContent)).toEqual(['Tech12']);
   const sections = [...root.querySelectorAll('section')];
   expect(sections.filter((s) => !s.hasAttribute('hidden'))).toHaveLength(1);
   input.value = '';

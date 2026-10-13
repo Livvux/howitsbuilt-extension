@@ -36,7 +36,7 @@ test('fetchProScan returns Pro data, null when not Pro', async () => {
   expect(await fetchProScan('tok_1', 'a.com')).toEqual(pro);
   expect(String(spy.mock.calls[0]![0])).toBe(`${SITE_ORIGIN}/api/v1/scan?domain=a.com`);
   spy.mockResolvedValue(json(200, { success: true, data: { domain: 'a.com', scannedAt: 1, technologies: [{ name: 'X', category: 'Y' }] }, error: null }));
-  expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
+  expect(await fetchProScan('tok_1', 'b.com')).toBeNull();
 });
 
 test('fetchProScan caches per domain in session storage for 10 minutes', async () => {
