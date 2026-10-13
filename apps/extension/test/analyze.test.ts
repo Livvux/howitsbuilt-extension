@@ -51,3 +51,15 @@ test('no result from a navigated-away page produces no detections', async () => 
   vi.spyOn(browser.scripting, 'executeScript').mockResolvedValue([] as any);
   expect(await analyzeTab(3, 'https://example.test/')).toMatchObject({ status: 'ok', detections: [] });
 });
+
+test('a hung injection times out as unsupported without an unhandled rejection', async () => {
+  vi.useFakeTimers();
+  try {
+    vi.spyOn(browser.scripting, 'executeScript').mockReturnValue(new Promise(() => {}) as any);
+    const scan = analyzeTab(1, 'https://example.test/');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(await scan).toEqual({ status: 'unsupported', url: 'https://example.test/' });
+  } finally {
+    vi.useRealTimers();
+  }
+});

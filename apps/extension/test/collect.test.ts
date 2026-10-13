@@ -178,3 +178,14 @@ test('headers: a hanging request is aborted after 2.5 s', async () => {
     vi.useRealTimers();
   }
 });
+
+test('headers: a page-broken AbortController yields empty headers, never a rejection', async () => {
+  vi.stubGlobal('AbortController', function () {
+    throw new Error('patched');
+  });
+  document.head.innerHTML = '<meta name="generator" content="Hugo">';
+  const s = await collectSignals(none);
+  expect(s.headers).toEqual({});
+  expect(s.meta).toEqual({ generator: ['Hugo'] });
+  vi.unstubAllGlobals();
+});
