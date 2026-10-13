@@ -20,12 +20,14 @@ export async function analyzeTab(tabId: number, url: string | undefined): Promis
   const engine = getEngine();
   let collected: CollectedSignals | undefined;
   try {
-    const [injection] = await browser.scripting.executeScript({
+    const injecting = browser.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
       func: collectSignals,
       args: [engine.probes],
     });
+    engine.warm(); // compile patterns while the page collects its signals
+    const [injection] = await injecting;
     collected = injection?.result as CollectedSignals | undefined;
   } catch {
     // Chrome blocks injection on internal pages, the Web Store, PDF viewers,
