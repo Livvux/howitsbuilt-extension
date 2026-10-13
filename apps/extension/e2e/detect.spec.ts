@@ -1,5 +1,8 @@
 import { chromium, expect, test, type BrowserContext, type Worker } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createEngine } from '@howitsbuilt/engine';
+import { collectSignals } from '../lib/collect';
 import { startFixtureServer } from './fixture-server';
 
 const EXTENSION = join(import.meta.dirname, '..', '.output', 'chrome-mv3');
@@ -54,6 +57,23 @@ test('a badge from an on-demand scan is cleared on navigation', async () => {
   await page.goto(`${fixture.url}?another-page`);
   await expect.poll(() => sw.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId)).toBe('');
   await page.close();
+});
+
+// The popup cannot be opened with an activeTab grant under automation, so run the real collector
+// (real fetch of real headers) in a page and feed the real engine.
+test('a header-only technology is detected through the same-origin HEAD', async () => {
+  const data = join(import.meta.dirname, '..', '..', '..', 'packages', 'engine', 'data');
+  const read = (name: string) => JSON.parse(readFileSync(join(data, name), 'utf8'));
+  const engine = createEngine(read('technologies.json'), read('categories.json'));
+
+  const page = await ctx.newPage();
+  await page.goto(fixture.url);
+  const signals = await page.evaluate(collectSignals, engine.probes);
+  await page.close();
+
+  expect(signals.headers).toMatchObject({ server: 'Caddy' });
+  const caddy = engine.match({ ...signals, url: fixture.url }).find((d) => d.tech === 'Caddy');
+  expect(caddy?.evidence.map((e) => e.source)).toEqual(['header']);
 });
 
 // User-invoked activeTab grants cannot be synthesized by opening popup.html as a
