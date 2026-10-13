@@ -141,6 +141,21 @@ test('headers: fetch failure yields empty headers and an intact scan', async () 
   expect(s.meta).toEqual({ generator: ['Hugo'] });
 });
 
+test('headers: a fetch that ignores the signal and never resolves does not stall the scan', async () => {
+  vi.useFakeTimers();
+  try {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    document.head.innerHTML = '<meta name="generator" content="Hugo">';
+    const scan = collectSignals(none);
+    await vi.advanceTimersByTimeAsync(2500);
+    const s = await scan;
+    expect(s.headers).toEqual({});
+    expect(s.meta).toEqual({ generator: ['Hugo'] });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test('headers: a hanging request is aborted after 2.5 s', async () => {
   vi.useFakeTimers();
   try {

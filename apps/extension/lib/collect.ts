@@ -32,9 +32,8 @@ export async function collectSignals(probes: Probes): Promise<CollectedSignals> 
 
   // Response headers come from a cookieless HEAD of the origin root (never the current URL: it may have
   // GET side effects). Any failure yields {}.
+  const ctl = new AbortController();
   const readHeaders = async (): Promise<Record<string, string>> => {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), HEADERS_TIMEOUT_MS);
     try {
       const res = await fetch(location.origin + '/', {
         method: 'HEAD',
@@ -54,11 +53,18 @@ export async function collectSignals(probes: Probes): Promise<CollectedSignals> 
       return out;
     } catch {
       return {};
-    } finally {
-      clearTimeout(timer);
     }
   };
-  const headers = await readHeaders();
+  // Raced against a plain timer: a page that replaced fetch with a never-resolving stub must not stall the scan.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<Record<string, string>>((resolve) => {
+    timer = setTimeout(() => {
+      ctl.abort();
+      resolve({});
+    }, HEADERS_TIMEOUT_MS);
+  });
+  const headers = await Promise.race([readHeaders(), timeout]);
+  clearTimeout(timer);
 
   const meta = safe(() => {
     const out: Record<string, string[]> = {};
