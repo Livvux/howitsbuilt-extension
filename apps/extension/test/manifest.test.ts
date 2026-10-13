@@ -6,7 +6,11 @@ const OUT = '.output/chrome-mv3';
 test('manifest requests access only to the invoked tab and our account service', async () => {
   const m = JSON.parse(await readFile(`${OUT}/manifest.json`, 'utf8'));
   expect(m.manifest_version).toBe(3);
-  expect(m.name).toBe('How Its Built');
+  expect(m.default_locale).toBe('en');
+  expect(m.name).toBe('__MSG_extName__');
+  expect(m.description).toBe('__MSG_extDescription__');
+  expect(m.action.default_title).toBe('__MSG_extName__');
+  expect(m.commands._execute_action.description).toBe('__MSG_cmdScan__');
   expect([...m.permissions].sort()).toEqual(['activeTab', 'scripting', 'storage']);
   expect(m.host_permissions).toEqual(['https://howitsbuilt.fyi/*']);
   expect(m.optional_host_permissions ?? []).toEqual([]);

@@ -1,6 +1,7 @@
 import type { Category, Detection } from '@howitsbuilt/engine';
 import type { ProScan, ProTech } from '@/lib/account';
 import type { TabResult } from '@/lib/analyze';
+import { t } from '@/lib/i18n';
 import { toJson, toMarkdown, toText, type Groups } from './export';
 
 const PRICING_URL = 'https://howitsbuilt.fyi/pricing';
@@ -71,7 +72,7 @@ export function mergePro(local: Detection[], scan: ProScan | undefined): { rows:
   return { rows, serverOnly };
 }
 
-const evidenceLine = (e: ProTech['evidence'][number]) => `${e.source === 'implies' ? 'implied by' : e.source}${e.key ? ` ${e.key}` : ''}: ${e.match}`;
+const evidenceLine = (e: ProTech['evidence'][number]) => `${e.source === 'implies' ? t('impliedBy') : e.source}${e.key ? ` ${e.key}` : ''}: ${e.match}`;
 
 function techRow({ d, pro }: Row): HTMLElement {
   const placeholder = () => h('span', { class: 'icon placeholder', 'aria-hidden': 'true' }, d.tech.charAt(0).toUpperCase());
@@ -86,7 +87,7 @@ function techRow({ d, pro }: Row): HTMLElement {
   const proInfo = !pro
     ? ''
     : pro.evidence.length
-      ? h('details', {}, h('summary', {}, `${pro.confidence}% · evidence`), h('ul', { class: 'evidence' }, ...pro.evidence.map((e) => h('li', {}, evidenceLine(e)))))
+      ? h('details', {}, h('summary', {}, `${pro.confidence}% · ${t('evidence')}`), h('ul', { class: 'evidence' }, ...pro.evidence.map((e) => h('li', {}, evidenceLine(e)))))
       : h('p', { class: 'conf' }, `${pro.confidence}%`);
   return h('li', { 'data-testid': 'tech', 'data-name': lc(d.tech) }, body, proInfo);
 }
@@ -101,7 +102,7 @@ function copyButton(label: string, text: () => string, attrs: Attrs = {}): HTMLE
     navigator.clipboard
       .writeText(text())
       .then(() => {
-        button.textContent = 'Copied';
+        button.textContent = t('copied');
         setTimeout(() => (button.textContent = label), 1500);
       })
       .catch(console.error);
@@ -120,9 +121,9 @@ const link = (href: string, text: string, cls = 'pro') => h('a', { class: cls, h
 
 const proStatus = (pro: ProView) =>
   pro === 'loading'
-    ? h('p', { class: 'status', role: 'status' }, 'Loading Pro details…')
+    ? h('p', { class: 'status', role: 'status' }, t('proLoading'))
     : pro === 'error'
-      ? h('p', { class: 'status', role: 'status' }, "Couldn't load Pro details.")
+      ? h('p', { class: 'status', role: 'status' }, t('proError'))
       : '';
 
 function techList(rows: Row[], serverOnly: Row[]): HTMLElement {
@@ -133,12 +134,12 @@ function techList(rows: Row[], serverOnly: Row[]): HTMLElement {
     ...groupByCategory(rows.map((r) => r.d)).map(([cat, items]) =>
       h('section', {}, h('h2', { 'data-testid': 'category' }, cat), h('ul', {}, ...items.map((d) => techRow(rowOf.get(d)!)))),
     ),
-    ...(serverOnly.length ? [h('section', {}, h('h2', {}, 'From How Its Built servers'), h('ul', {}, ...serverOnly.map(techRow)))] : []),
+    ...(serverOnly.length ? [h('section', {}, h('h2', {}, t('serverSection')), h('ul', {}, ...serverOnly.map(techRow)))] : []),
   );
 }
 
 function searchBox(main: HTMLElement, previous: string): HTMLInputElement {
-  const search = h('input', { type: 'search', class: 'search', placeholder: 'Filter technologies', 'aria-label': 'Filter technologies' }) as HTMLInputElement;
+  const search = h('input', { type: 'search', class: 'search', placeholder: t('filterLabel'), 'aria-label': t('filterLabel') }) as HTMLInputElement;
   search.addEventListener('input', () => applyFilter(main, search.value));
   search.value = previous;
   if (previous) applyFilter(main, previous);
@@ -162,16 +163,16 @@ export function renderPopup(root: HTMLElement, state: PopupState, account?: Acco
   let groups: Groups = [];
   let search: HTMLInputElement | undefined;
   if (state === null) {
-    main = message('Scanning this page…', 'This page is inspected only when you open How Its Built.');
+    main = message(t('scanningTitle'), t('scanningDetail'));
   } else if (state === 'error') {
-    main = message('Something went wrong', "We couldn't finish scanning this page. Try Rescan.");
+    main = message(t('errorTitle'), t('errorDetail'));
   } else if (!okState) {
-    main = message("Can't inspect this page", 'Chrome blocks extensions on internal pages, the Web Store and file viewers.');
+    main = message(t('unsupportedTitle'), t('unsupportedDetail'));
   } else {
     const { rows, serverOnly } = mergePro(okState.detections, typeof opts.pro === 'object' ? opts.pro : undefined);
     const all = [...rows, ...serverOnly].map((r) => r.d);
     if (all.length === 0) {
-      main = message('No technologies found', "This page doesn't expose a stack we recognize.");
+      main = message(t('emptyTitle'), t('emptyDetail'));
     } else {
       groups = groupByCategory(all);
       main = techList(rows, serverOnly);
@@ -182,18 +183,18 @@ export function renderPopup(root: HTMLElement, state: PopupState, account?: Acco
   const footer = h('footer', {});
   if (okState && groups.length > 0) {
     footer.append(
-      copyButton('Copy', () => toText(host, groups), { 'data-testid': 'copy' }),
-      copyButton('MD', () => toMarkdown(host, groups), { 'aria-label': 'Copy as Markdown' }),
-      copyButton('JSON', () => toJson(url, okState.scannedAt, groups), { 'aria-label': 'Copy as JSON' }),
+      copyButton(t('copy'), () => toText(host, groups), { 'data-testid': 'copy' }),
+      copyButton('MD', () => toMarkdown(host, groups), { 'aria-label': t('copyMarkdown') }),
+      copyButton('JSON', () => toJson(url, okState.scannedAt, groups), { 'aria-label': t('copyJson') }),
     );
   }
   if (opts.onRescan && (state === 'error' || okState)) {
-    const rescan = h('button', { type: 'button', 'data-testid': 'rescan' }, 'Rescan');
+    const rescan = h('button', { type: 'button', 'data-testid': 'rescan' }, t('rescan'));
     rescan.addEventListener('click', opts.onRescan);
     footer.append(rescan);
   }
-  if (account?.kind === 'signed-out') footer.append(link(CONNECT_URL, 'Sign in for hosting, DNS & more →'));
-  else if (!account || !account.pro) footer.append(link(PRICING_URL, 'Hosting, DNS & more — Pro →'));
+  if (account?.kind === 'signed-out') footer.append(link(CONNECT_URL, t('signInLink')));
+  else if (!account || !account.pro) footer.append(link(PRICING_URL, t('proLink')));
 
   main.setAttribute('data-region', 'main');
   const parts: (HTMLElement | string)[] = [header];

@@ -8,18 +8,18 @@ const ICONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../packages/
 export default defineConfig({
   manifestVersion: 3, // WXT defaults Firefox to MV2
   manifest: ({ browser }) => ({
-    name: 'How Its Built',
-    description: 'See how any website is built — frameworks, hosting, analytics and more.',
+    default_locale: 'en',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
     permissions: ['activeTab', 'scripting', 'storage'],
     // Only the account / Pro API needs a persistent host grant.
     // Other sites are inspected only when the user opens the popup (activeTab).
     host_permissions: ['https://howitsbuilt.fyi/*'],
-    action: { default_title: 'How Its Built' },
     // Opening the popup via the shortcut also grants activeTab for the current tab.
     commands: {
       _execute_action: {
         suggested_key: { default: 'Alt+Shift+H' },
-        description: 'Scan the current site',
+        description: '__MSG_cmdScan__',
       },
     },
     ...(browser === 'firefox' && {
