@@ -5,6 +5,7 @@ import { analyzeTab, type TabResult } from '@/lib/analyze';
 import { hostOf, renderPopup, type AccountView, type PopupState, type ProView } from './render';
 
 const root = document.getElementById('app')!;
+document.documentElement.lang = browser.i18n.getUILanguage();
 // Catch frameworks that hydrate shortly after load, while the user keeps the popup open.
 const SECOND_PASS_MS = 3000;
 
