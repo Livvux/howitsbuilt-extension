@@ -38,3 +38,26 @@ test('fetchProScan returns Pro data, null when not Pro', async () => {
   spy.mockResolvedValue(json(200, { success: true, data: { domain: 'a.com', scannedAt: 1, technologies: [{ name: 'X', category: 'Y' }] }, error: null }));
   expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
 });
+
+test('fetchProScan caches per domain in session storage for 10 minutes', async () => {
+  const pro = { domain: 'a.com', scannedAt: 1, technologies: [{ name: 'Next.js', category: 'X', confidence: 100, evidence: [] }] };
+  const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(200, { success: true, data: pro, error: null }));
+  const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+  expect(await fetchProScan('tok_1', 'a.com')).toEqual(pro);
+  expect(await browser.storage.session.get('pro:a.com')).toEqual({ 'pro:a.com': { at: 1_000_000, scan: pro } });
+  now.mockReturnValue(1_000_000 + 9 * 60_000);
+  expect(await fetchProScan('tok_1', 'a.com')).toEqual(pro);
+  expect(spy).toHaveBeenCalledTimes(1);
+  await fetchProScan('tok_1', 'b.com'); // other domain: own entry
+  expect(spy).toHaveBeenCalledTimes(2);
+  now.mockReturnValue(1_000_000 + 10 * 60_000);
+  await fetchProScan('tok_1', 'a.com'); // expired: refetch
+  expect(spy).toHaveBeenCalledTimes(3);
+});
+
+test('fetchProScan does not cache failures', async () => {
+  const spy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
+  expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
+  expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
+  expect(spy).toHaveBeenCalledTimes(2);
+});

@@ -31,12 +31,20 @@ export async function fetchMe(token: string): Promise<Me | null> {
   return r?.data ?? null;
 }
 
-/** Server-side Pro view of a domain; null unless the response actually carries Pro fields. */
+const PRO_TTL_MS = 10 * 60 * 1000;
+type CachedScan = { at: number; scan: ProScan };
+
+/** Server-side Pro view of a domain; null unless the response actually carries Pro fields. Cached 10 min per domain. */
 export async function fetchProScan(token: string, domain: string): Promise<ProScan | null> {
+  const key = `pro:${domain}`;
+  const cached = (await browser.storage.session.get(key))[key] as CachedScan | undefined;
+  if (cached && Date.now() - cached.at < PRO_TTL_MS) return cached.scan;
   const r = await api<ProScan>(token, `/api/v1/scan?domain=${encodeURIComponent(domain)}`);
   if (r?.status === 401) await clearToken();
   const scan = r?.data;
-  return scan && scan.technologies.every((t) => typeof t.confidence === 'number') ? scan : null;
+  if (!scan || !scan.technologies.every((t) => typeof t.confidence === 'number')) return null;
+  await browser.storage.session.set({ [key]: { at: Date.now(), scan } satisfies CachedScan });
+  return scan;
 }
 
 /** Content script on howitsbuilt.fyi: relays the token posted by /connect to the background. */
