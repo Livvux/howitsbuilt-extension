@@ -15,6 +15,12 @@ test('manifest requests access only to the invoked tab and our account service',
   expect(Object.keys(m.icons)).toEqual(expect.arrayContaining(['16', '32', '48', '128']));
 });
 
+test('keyboard shortcut opens the popup (and so grants activeTab)', async () => {
+  const m = JSON.parse(await readFile(`${OUT}/manifest.json`, 'utf8'));
+  expect(m.commands._execute_action.suggested_key.default).toBe('Alt+Shift+H');
+  expect(m.browser_specific_settings).toBeUndefined();
+});
+
 test('technology icons are bundled', () => {
   expect(existsSync(`${OUT}/tech-icons/Next.js.webp`)).toBe(true);
 });

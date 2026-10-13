@@ -1,0 +1,35 @@
+name: Update fingerprints
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The script defaults to its pinned SHA; pass upstream HEAD to pull new data.
+      - run: |
+          sha=$(git ls-remote https://github.com/enthec/webappanalyzer HEAD | cut -f1)
+          pnpm --filter @howitsbuilt/engine update-fingerprints --ref "$sha"
+          # SOURCE embeds the fetch date; ignore it when nothing else changed.
+          git diff --quiet -- . ':!packages/engine/data/SOURCE' && git checkout packages/engine/data/SOURCE || true
+      - run: pnpm test
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/update-fingerprints
+          commit-message: 'chore: update fingerprints'
+          title: 'chore: update fingerprints'
+          body: Automated weekly sync from enthec/webappanalyzer. Tests pass; review before merging.
