@@ -11,7 +11,10 @@ export type Engine = {
   /** Sorted by category priority, then name. Never throws. */
   match(signals: Signals): Detection[];
   probes: Probes;
-  invalidPatterns: number;
+  /** Compiles the patterns now instead of on the first match(); lets callers overlap it with other work. */
+  warm(): void;
+  /** Forces compilation. */
+  readonly invalidPatterns: number;
 };
 
 const MAX_CONFIDENCE = 100;
@@ -28,10 +31,23 @@ function prepare(s: Signals): Prepared {
   };
 }
 
-export function createEngine(
-  technologies: Record<string, unknown>,
-  categories: Record<string, { name: string; priority: number }>,
-): Engine {
+type Categories = Record<string, { name: string; priority: number }>;
+
+/** Probes are available immediately; patterns compile on first warm()/match()/invalidPatterns. */
+export function createEngine(technologies: Record<string, unknown>, categories: Categories): Engine {
+  let compiled: ReturnType<typeof compile> | undefined;
+  const get = () => (compiled ??= compile(technologies, categories));
+  return {
+    match: (signals) => get().match(signals),
+    probes: buildProbes(technologies),
+    warm: () => void get(),
+    get invalidPatterns() {
+      return get().invalidPatterns;
+    },
+  };
+}
+
+function compile(technologies: Record<string, unknown>, categories: Categories) {
   const { techs, invalidPatterns } = compileTechnologies(technologies);
   const byName = new Map(techs.map((t) => [t.name, t]));
   const catById = new Map<number, Category>(
@@ -54,7 +70,7 @@ export function createEngine(
   const priority = (d: Detection): number => Math.min(...d.categories.map((c) => c.priority), Infinity);
 
   return {
-    match(signals) {
+    match(signals: Signals): Detection[] {
       const full = prepare(signals);
       const cheap: Prepared = { ...full, html: undefined, scripts: undefined, text: undefined };
       const deadline = performance.now() + DOCUMENT_BUDGET_MS;
@@ -67,7 +83,6 @@ export function createEngine(
         .map(([name, hit]) => toDetection(name, hit))
         .sort((a, b) => priority(a) - priority(b) || a.tech.localeCompare(b.tech));
     },
-    probes: buildProbes(techs),
     invalidPatterns,
   };
 }
