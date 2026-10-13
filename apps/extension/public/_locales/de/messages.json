@@ -7,7 +7,7 @@
   "errorTitle": { "message": "Etwas ist schiefgelaufen" },
   "errorDetail": { "message": "Wir konnten den Scan dieser Seite nicht abschließen. Versuch es mit „Neu scannen“." },
   "unsupportedTitle": { "message": "Diese Seite kann nicht untersucht werden" },
-  "unsupportedDetail": { "message": "Chrome blockiert Erweiterungen auf internen Seiten, im Web Store und in Datei-Viewern." },
+  "unsupportedDetail": { "message": "Dein Browser blockiert Erweiterungen auf internen Seiten, in Add-on-Stores und in Datei-Viewern." },
   "emptyTitle": { "message": "Keine Technologien gefunden" },
   "emptyDetail": { "message": "Diese Seite gibt keinen Stack preis, den wir erkennen." },
   "filterLabel": { "message": "Technologien filtern" },
@@ -21,6 +21,6 @@
   "copyMarkdown": { "message": "Als Markdown kopieren" },
   "copyJson": { "message": "Als JSON kopieren" },
   "rescan": { "message": "Neu scannen" },
-  "signInLink": { "message": "Melde dich an für Hosting, DNS & mehr →" },
+  "signInLink": { "message": "Anmelden für Hosting, DNS & mehr →" },
   "proLink": { "message": "Hosting, DNS & mehr – Pro →" }
 }

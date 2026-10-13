@@ -7,7 +7,7 @@
   "errorTitle": { "message": "Something went wrong" },
   "errorDetail": { "message": "We couldn't finish scanning this page. Try Rescan." },
   "unsupportedTitle": { "message": "Can't inspect this page" },
-  "unsupportedDetail": { "message": "Chrome blocks extensions on internal pages, the Web Store and file viewers." },
+  "unsupportedDetail": { "message": "Your browser blocks extensions on internal pages, add-on stores and file viewers." },
   "emptyTitle": { "message": "No technologies found" },
   "emptyDetail": { "message": "This page doesn't expose a stack we recognize." },
   "filterLabel": { "message": "Filter technologies" },
