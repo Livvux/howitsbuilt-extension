@@ -74,9 +74,11 @@ export function mergePro(local: Detection[], scan: ProScan | undefined): { rows:
 const evidenceLine = (e: ProTech['evidence'][number]) => `${e.source === 'implies' ? 'implied by' : e.source}${e.key ? ` ${e.key}` : ''}: ${e.match}`;
 
 function techRow({ d, pro }: Row): HTMLElement {
+  const placeholder = () => h('span', { class: 'icon placeholder', 'aria-hidden': 'true' }, d.tech.charAt(0).toUpperCase());
   const icon = d.icon
     ? h('img', { class: 'icon', src: `/tech-icons/${d.icon.replace(/\.[^.]+$/, '.webp')}`, alt: '', width: '16', height: '16' })
-    : h('span', { class: 'icon placeholder', 'aria-hidden': 'true' }, d.tech.charAt(0).toUpperCase());
+    : placeholder();
+  icon.addEventListener('error', () => icon.replaceWith(placeholder()), { once: true });
   const content = [icon, h('span', { class: 'name' }, d.tech), d.version ? h('span', { class: 'version' }, d.version) : ''];
   const body = d.website
     ? h('a', { href: d.website, target: '_blank', rel: 'noopener noreferrer' }, ...content)

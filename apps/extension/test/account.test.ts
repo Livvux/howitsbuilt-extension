@@ -1,5 +1,5 @@
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { fetchMe, fetchProScan, getToken, SITE_ORIGIN, tokenKey } from '../lib/account';
+import { clearToken, fetchMe, fetchProScan, getToken, setToken, SITE_ORIGIN, tokenKey } from '../lib/account';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -60,4 +60,15 @@ test('fetchProScan does not cache failures', async () => {
   expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
   expect(await fetchProScan('tok_1', 'a.com')).toBeNull();
   expect(spy).toHaveBeenCalledTimes(2);
+});
+
+test('setToken and clearToken drop the Pro scan cache', async () => {
+  await browser.storage.session.set({ 'pro:a.com': { at: 1, scan: {} } });
+  await setToken('tok_2');
+  expect(await browser.storage.session.get(null)).toEqual({});
+  expect(await getToken()).toBe('tok_2');
+  await browser.storage.session.set({ 'pro:a.com': { at: 1, scan: {} } });
+  await clearToken();
+  expect(await browser.storage.session.get(null)).toEqual({});
+  expect(await getToken()).toBeNull();
 });

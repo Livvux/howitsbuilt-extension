@@ -11,8 +11,15 @@ export type ProScan = { domain: string; scannedAt: number; technologies: ProTech
 type Envelope<T> = { success: boolean; data: T | null };
 
 export const getToken = async (): Promise<string | null> => ((await browser.storage.local.get(tokenKey))[tokenKey] as string | undefined) ?? null;
-export const setToken = (token: string) => browser.storage.local.set({ [tokenKey]: token });
-export const clearToken = () => browser.storage.local.remove(tokenKey);
+// storage.session holds only the per-domain Pro scan cache, so clearing it on any token change keeps one account's data from leaking to the next.
+export const setToken = async (token: string) => {
+  await browser.storage.session.clear();
+  await browser.storage.local.set({ [tokenKey]: token });
+};
+export const clearToken = async () => {
+  await browser.storage.session.clear();
+  await browser.storage.local.remove(tokenKey);
+};
 
 async function api<T>(token: string, path: string): Promise<{ status: number; data: T | null } | null> {
   try {

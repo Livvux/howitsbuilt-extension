@@ -188,3 +188,10 @@ test('export: Markdown and JSON copy the merged list', async () => {
     ],
   });
 });
+
+test('an icon that fails to load is replaced by the letter placeholder', () => {
+  renderPopup(root, ok([nextjs]));
+  root.querySelector('img')!.dispatchEvent(new Event('error'));
+  expect(root.querySelector('img')).toBeNull();
+  expect(root.querySelector('[data-testid=tech] .icon.placeholder')!.textContent).toBe('N');
+});
