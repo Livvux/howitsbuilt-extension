@@ -208,3 +208,33 @@ test('Pro-only tech links its website only for http(s) URLs', () => {
   expect(hrefs.some((h) => h?.startsWith('javascript:') || h === 'not a url')).toBe(false);
   expect(root.querySelectorAll('[data-testid=tech]')).toHaveLength(4);
 });
+
+test('Pro deep report: infrastructure, tracking, security and scanned pages; the filter never hides it', () => {
+  const pro: ProScan = {
+    domain: 'vercel.com',
+    scannedAt: 1,
+    technologies: [],
+    deep: {
+      infrastructure: { ips: ['76.76.21.21'], asn: { number: 16509, name: 'AMAZON-02' }, hosting: 'Amazon Web Services', cdn: 'Vercel', nameservers: [], mx: [], tlsIssuer: "Let's Encrypt" },
+      tracking: [{ kind: 'GTM', id: 'GTM-ABC123' }],
+      security: { grade: 'C', score: 64, checks: [{ id: 'csp', label: 'Content-Security-Policy', pass: false }], leaks: [{ header: 'x-powered-by', value: 'Next.js' }] },
+      pages: [{ url: 'https://vercel.com/blog', ok: true }, { url: 'https://vercel.com/x', ok: false }],
+      rendered: true,
+    },
+  };
+  const many = Array.from({ length: 16 }, (_, i): Detection => ({ ...react, tech: `Tech ${i}` }));
+  renderPopup(root, { status: 'ok', url: 'https://vercel.com/', scannedAt: 0, detections: many }, { kind: 'account', email: 'u@x.com', pro: true }, { pro });
+  const deep = root.querySelector('[data-testid=deep]')!;
+  expect(deep.textContent).toContain('Amazon Web Services');
+  expect(deep.textContent).toContain('AS16509 · AMAZON-02');
+  expect(deep.textContent).toContain("Let's Encrypt");
+  expect(deep.textContent).toContain('GTM-ABC123');
+  expect(deep.textContent).toContain('C 64');
+  expect(deep.textContent).toContain('○ Content-Security-Policy');
+  expect(deep.textContent).toContain('x-powered-by: Next.js');
+  expect(deep.textContent).toContain('JavaScript rendered');
+  const search = root.querySelector<HTMLInputElement>('input[type=search]')!;
+  search.value = 'zzz';
+  search.dispatchEvent(new Event('input'));
+  expect([...deep.querySelectorAll('section')].every((s) => !s.hasAttribute('hidden'))).toBe(true);
+});

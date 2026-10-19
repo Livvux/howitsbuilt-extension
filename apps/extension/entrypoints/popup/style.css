@@ -204,3 +204,39 @@ summary {
   padding: 4px 0 0;
   word-break: break-all;
 }
+
+.deep {
+  border-top: 1px solid var(--line);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  padding: 4px 16px 8px;
+  font: 400 11px/1.4 var(--font-mono);
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  word-break: break-all;
+}
+
+.checks {
+  padding: 4px 16px 4px;
+  font: 400 11px/1.6 var(--font-sans);
+}
+
+.checks .fail,
+.note {
+  color: var(--muted);
+}
+
+.note {
+  padding: 4px 16px 8px;
+  font: 400 10.5px/1.5 var(--font-mono);
+  word-break: break-all;
+}

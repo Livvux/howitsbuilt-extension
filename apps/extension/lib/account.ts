@@ -2,11 +2,31 @@
 export const SITE_ORIGIN = 'https://howitsbuilt.fyi';
 export const tokenKey = 'auth:token';
 const TOKEN_MAX = 512;
+const API_TIMEOUT_MS = 45_000;
 
 export type Plan = { tier: 'free' } | { tier: 'pro'; source: string; [k: string]: unknown };
 export type Me = { email: string; plan: Plan };
 export type ProTech = { name: string; category: string; icon?: string; website?: string; version?: string; confidence: number; evidence: { source: string; key?: string; match: string }[] };
-export type ProScan = { domain: string; scannedAt: number; technologies: ProTech[] };
+export type ProDeep = {
+  infrastructure: {
+    ips: string[];
+    asn?: { number: number; name: string; country?: string };
+    hosting?: string;
+    cdn?: string;
+    nameservers: string[];
+    dnsProvider?: string;
+    mx: string[];
+    mailProvider?: string;
+    spf?: { record: string; all?: string };
+    dmarc?: { record: string; policy?: string };
+    tlsIssuer?: string;
+  };
+  tracking: { kind: string; id: string }[];
+  security: { grade: string; score: number; checks: { id: string; label: string; pass: boolean }[]; leaks: { header: string; value: string }[] };
+  pages: { url: string; ok: boolean }[];
+  rendered: boolean;
+};
+export type ProScan = { domain: string; scannedAt: number; technologies: ProTech[]; deep?: ProDeep };
 
 type Envelope<T> = { success: boolean; data: T | null };
 
@@ -23,7 +43,8 @@ export const clearToken = async () => {
 
 async function api<T>(token: string, path: string): Promise<{ status: number; data: T | null } | null> {
   try {
-    const res = await fetch(`${SITE_ORIGIN}${path}`, { headers: { authorization: `Bearer ${token}` } });
+    // A cold Pro deep scan renders the site in a browser server-side; give it time, but not forever.
+    const res = await fetch(`${SITE_ORIGIN}${path}`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
     const body = (await res.json().catch(() => null)) as Envelope<T> | null;
     return { status: res.status, data: body?.success ? body.data : null };
   } catch {
@@ -64,8 +85,31 @@ export async function fetchProScan(token: string, domain: string): Promise<ProSc
     !scan.technologies.every((t) => typeof t?.name === 'string' && typeof t.confidence === 'number' && Array.isArray(t.evidence))
   )
     return null;
-  await browser.storage.session.set({ [key]: { at: Date.now(), scan } satisfies CachedScan });
-  return scan;
+  const { deep, ...rest } = scan;
+  const checked: ProScan = isDeep(deep) ? { ...rest, deep } : rest;
+  await browser.storage.session.set({ [key]: { at: Date.now(), scan: checked } satisfies CachedScan });
+  return checked;
+}
+
+const isStr = (v: unknown): v is string => typeof v === 'string';
+const allOf = (v: unknown, ok: (x: Record<string, unknown>) => boolean) =>
+  Array.isArray(v) && v.every((x) => typeof x === 'object' && x !== null && ok(x as Record<string, unknown>));
+
+/** The deep report is optional: a malformed one is dropped, the rest of the Pro view still shows. */
+export function isDeep(v: unknown): v is ProDeep {
+  const d = v as Partial<ProDeep> | null | undefined;
+  const infra = d?.infrastructure;
+  return (
+    !!infra &&
+    [infra.ips, infra.nameservers, infra.mx].every((a) => Array.isArray(a) && a.every(isStr)) &&
+    allOf(d.tracking, (x) => isStr(x.kind) && isStr(x.id)) &&
+    isStr(d.security?.grade) &&
+    typeof d.security.score === 'number' &&
+    allOf(d.security.checks, (x) => isStr(x.id) && isStr(x.label) && typeof x.pass === 'boolean') &&
+    allOf(d.security.leaks, (x) => isStr(x.header) && isStr(x.value)) &&
+    allOf(d.pages, (x) => isStr(x.url) && typeof x.ok === 'boolean') &&
+    typeof d.rendered === 'boolean'
+  );
 }
 
 /** Content script on howitsbuilt.fyi: relays the token posted by /connect to the background. */

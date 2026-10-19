@@ -1,5 +1,5 @@
 import type { Category, Detection } from '@howitsbuilt/engine';
-import type { ProScan, ProTech } from '@/lib/account';
+import type { ProDeep, ProScan, ProTech } from '@/lib/account';
 import type { TabResult } from '@/lib/analyze';
 import { t } from '@/lib/i18n';
 import { toJson, toMarkdown, toText, type Groups } from './export';
@@ -115,7 +115,7 @@ function copyButton(label: string, text: () => string, attrs: Attrs = {}): HTMLE
 function applyFilter(main: HTMLElement, query: string): void {
   const needle = lc(query.trim());
   for (const li of main.querySelectorAll('li[data-name]')) li.toggleAttribute('hidden', !li.getAttribute('data-name')!.includes(needle));
-  for (const s of main.querySelectorAll('section')) s.toggleAttribute('hidden', !s.querySelector('li[data-name]:not([hidden])'));
+  for (const s of main.querySelectorAll(':scope > section')) s.toggleAttribute('hidden', !s.querySelector('li[data-name]:not([hidden])'));
 }
 
 const link = (href: string, text: string, cls = 'pro') => h('a', { class: cls, href, target: '_blank', rel: 'noopener noreferrer' }, text);
@@ -136,6 +136,59 @@ function techList(rows: Row[], serverOnly: Row[]): HTMLElement {
       h('section', {}, h('h2', { 'data-testid': 'category' }, cat), h('ul', {}, ...items.map((d) => techRow(rowOf.get(d)!)))),
     ),
     ...(serverOnly.length ? [h('section', {}, h('h2', {}, t('serverSection')), h('ul', {}, ...serverOnly.map(techRow)))] : []),
+  );
+}
+
+const factRow = (label: string, value: string | undefined) => (value ? [h('dt', {}, label), h('dd', {}, value)] : []);
+
+/** Server-side Pro deep scan. Nested in a div so the technology filter (direct child sections only) never hides it. */
+function deepView(deep: ProDeep): HTMLElement {
+  const infra = deep.infrastructure;
+  const checkLabel: Record<string, string> = {
+    https: t('secHttps'),
+    hsts: t('secHsts'),
+    csp: t('secCsp'),
+    frame: t('secFrame'),
+    nosniff: t('secNosniff'),
+    referrer: t('secReferrer'),
+    permissions: t('secPermissions'),
+  };
+  const facts = [
+    ...factRow(t('infoHosting'), infra.hosting),
+    ...factRow('ASN', infra.asn && `AS${infra.asn.number} · ${infra.asn.name}`),
+    ...factRow('CDN', infra.cdn),
+    ...factRow(t('infoDns'), infra.dnsProvider),
+    ...factRow(t('infoMail'), infra.mailProvider),
+    ...factRow('SPF', infra.spf ? (infra.spf.all ?? infra.spf.record) : t('infoNone')),
+    ...factRow('DMARC', infra.dmarc ? `p=${infra.dmarc.policy ?? '?'}` : t('infoNone')),
+    ...factRow(t('infoTls'), infra.tlsIssuer),
+  ];
+  const { security } = deep;
+  return h(
+    'div',
+    { class: 'deep', 'data-testid': 'deep' },
+    h('section', {}, h('h2', {}, t('infraTitle')), h('dl', { class: 'facts' }, ...facts)),
+    h(
+      'section',
+      {},
+      h('h2', {}, t('trackingTitle')),
+      deep.tracking.length
+        ? h('dl', { class: 'facts' }, ...deep.tracking.flatMap((x) => factRow(x.kind, x.id)))
+        : h('p', { class: 'note' }, t('trackingNone')),
+    ),
+    h(
+      'section',
+      {},
+      h('h2', {}, `${t('securityTitle')} · ${security.grade} ${security.score}`),
+      h('ul', { class: 'checks' }, ...security.checks.map((c) => h('li', { class: c.pass ? 'pass' : 'fail' }, `${c.pass ? '●' : '○'} ${checkLabel[c.id] ?? c.label}`))),
+      ...(security.leaks.length ? [h('p', { class: 'note' }, `${t('securityLeaks')}: ${security.leaks.map((l) => `${l.header}: ${l.value}`).join(', ')}`)] : []),
+    ),
+    h(
+      'p',
+      { class: 'note' },
+      t('scannedPages', String(1 + deep.pages.filter((p) => p.ok).length)),
+      deep.rendered ? ` · ${t('rendered')}` : '',
+    ),
   );
 }
 
@@ -170,7 +223,8 @@ export function renderPopup(root: HTMLElement, state: PopupState, account?: Acco
   } else if (!okState) {
     main = message(t('unsupportedTitle'), t('unsupportedDetail'));
   } else {
-    const { rows, serverOnly } = mergePro(okState.detections, typeof opts.pro === 'object' ? opts.pro : undefined);
+    const proScan = typeof opts.pro === 'object' ? opts.pro : undefined;
+    const { rows, serverOnly } = mergePro(okState.detections, proScan);
     const all = [...rows, ...serverOnly].map((r) => r.d);
     if (all.length === 0) {
       main = message(t('emptyTitle'), t('emptyDetail'));
@@ -179,6 +233,7 @@ export function renderPopup(root: HTMLElement, state: PopupState, account?: Acco
       main = techList(rows, serverOnly);
       if (all.length > SEARCH_MIN) search = searchBox(main, oldSearch?.value ?? '');
     }
+    if (proScan?.deep) main.append(deepView(proScan.deep));
   }
 
   const footer = h('footer', {});
