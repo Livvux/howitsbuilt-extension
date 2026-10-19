@@ -88,3 +88,18 @@ test('isPublicHost only allows public-looking hostnames', () => {
   for (const h of ['localhost', 'intranet', 'x.local', 'x.internal', 'nas.lan', 'app.localhost', '127.0.0.1', '192.168.1.5', '[::1]', '::1', 'example.com.local', ''])
     expect(isPublicHost(h), h).toBe(false);
 });
+
+test('fetchProScan keeps a well-formed deep report and drops a malformed one', async () => {
+  const deep = {
+    infrastructure: { ips: ['1.2.3.4'], nameservers: [], mx: [], hosting: 'Hetzner' },
+    tracking: [{ kind: 'GA4', id: 'G-ABC1234567' }],
+    security: { grade: 'B', score: 80, checks: [{ id: 'https', label: 'HTTPS', pass: true }], leaks: [] },
+    pages: [{ url: 'https://a.com/blog', ok: true }],
+    rendered: true,
+  };
+  const base = { domain: 'a.com', scannedAt: 1, technologies: [] };
+  const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(200, { success: true, data: { ...base, deep }, error: null }));
+  expect(await fetchProScan('tok_1', 'a.com')).toEqual({ ...base, deep });
+  spy.mockResolvedValue(json(200, { success: true, data: { ...base, deep: { ...deep, tracking: [{ kind: 1 }] } }, error: null }));
+  expect(await fetchProScan('tok_1', 'b.com')).toEqual(base);
+});
